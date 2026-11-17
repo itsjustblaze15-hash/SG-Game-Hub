@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060d1c">
+<title>SG · Game Hub</title>
+<link rel="icon" href="assets/sg-logo.png">
+<link rel="apple-touch-icon" href="assets/sg-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="hub.css">
+<script defer src="catalog.js"></script>
+<script defer src="hub.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="topbar">
+    <a class="brand" href="./"><img src="assets/sg-logo.png" width="42" height="42" alt="SG"><span>Game Hub</span></a>
+    <label class="search"><span class="search-icon" aria-hidden="true"></span><input id="search" type="search" autocomplete="off" placeholder="Search your games" aria-label="Search your games"></label>
+  </div>
+</header>
+<main>
+  <div class="library-heading">
+    <h1>All games <span id="count" aria-live="polite"></span></h1>
+    <div id="legend"></div>
+  </div>
+  <div class="grid" id="games"></div>
+  <p class="empty" id="empty" hidden>No games match your search.</p>
+</main>
+<dialog id="details" aria-labelledby="game-title">
+  <div class="detail-cover">
+    <img id="game-cover" alt="">
+    <form method="dialog"><button class="close" aria-label="Close game details">×</button></form>
+  </div>
+  <div class="detail-content">
+    <p id="game-genre" class="genre"></p>
+    <h2 id="game-title"></h2>
+    <p id="game-description"></p>
+    <div id="game-devices"></div>
+    <a id="play" class="play" hidden>Play now</a>
+    <p id="availability" class="availability" hidden>Playable in SG on Mac.</p>
+  </div>
+</dialog>
+<noscript>Enable JavaScript to view the SG library.</noscript>
+</body>
+</html>
