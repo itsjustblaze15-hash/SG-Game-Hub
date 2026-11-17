@@ -1,0 +1,12 @@
+@media (pointer: coarse) {
+  #toolbelt { bottom: 96px; }
+  #objective { max-width: 34vw; }
+  #target { bottom: 155px; }
+  #welcome { overflow: auto; }
+  #screen { overflow: auto; }
+  #hud .balance { transform: scale(.8); transform-origin: top left; }
+}
+@media (pointer: coarse) and (max-width: 650px) {
+  #toolbelt { max-width: calc(100vw - 12px); overflow-x: auto; }
+  #objective { display: none; }
+}

@@ -76,8 +76,8 @@ const games = [
     "description": "Buy damaged cars, salvage compatible parts, and repair the vehicles by hand. Sell the finished cars for a profit and put the money toward your next project.",
     "cover": "assets/second-chance.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/second-chance/"
   },
   {
     "id": "blacktide",
@@ -106,8 +106,8 @@ const games = [
     "description": "Walk the orchard in first person and pick red apples by hand. Harvest across 16 plots and earn one coin for every apple you sell.",
     "cover": "assets/redwood.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/redwood/"
   },
   {
     "id": "world-conquest",
@@ -126,8 +126,8 @@ const games = [
     "description": "Build a presidential campaign, win the Electoral College, and govern through crises and midterms. Rebuild after a loss and shape your legacy across two elected terms.",
     "cover": "assets/president-simulator.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/president-simulator/"
   },
   {
     "id": "motor-dynasty",
@@ -136,8 +136,8 @@ const games = [
     "description": "Design cars and run your own manufacturer. Build out your lineup and grow the company across generations in a timeline with no fixed ending year.",
     "cover": "assets/motor-dynasty.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/motor-dynasty/"
   },
   {
     "id": "traffic-jam-simulator",

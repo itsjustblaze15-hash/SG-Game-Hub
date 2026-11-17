@@ -1,0 +1,19 @@
+.sg-touch-controls[hidden] { display: none !important; }
+.sg-touch-surface { touch-action: none; }
+.sg-touch-controls {
+  position: fixed; z-index: 8; inset: auto 10px 9px; display: flex; justify-content: space-between;
+  align-items: end; gap: 6px; pointer-events: none;
+}
+.sg-touch-movement { display: grid; grid-template-columns: repeat(3, 42px); gap: 3px; }
+.sg-touch-movement [data-key="KeyW"] { grid-column: 2; }
+.sg-touch-movement [data-key="KeyA"] { grid-column: 1; }
+.sg-touch-controls button {
+  pointer-events: auto; touch-action: none; min-width: 42px; min-height: 40px; padding: 4px;
+  color: #fff; background: #071729e0; border: 1px solid #becfe07a; border-radius: 8px;
+  font: 670 13px system-ui; user-select: none;
+}
+.sg-touch-movement button { font-size: 19px; }
+.sg-touch-controls button:active { background: #2062a4; }
+.sg-touch-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 4px; max-width: 165px; }
+.sg-touch-actions button:last-child { min-width: 52px; }
+@media (orientation: landscape) { .sg-touch-controls { inset: auto 14px 10px; } }

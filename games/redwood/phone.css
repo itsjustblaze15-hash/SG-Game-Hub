@@ -1,0 +1,11 @@
+@media (pointer: coarse) {
+  .bottom-hint, .mini-card, .tool-card, .clock { display: none !important; }
+  .modal { max-width: calc(100vw - 20px); }
+  .overlay { overflow: auto; }
+  #interaction { bottom: 107px; }
+  #hud .resources { transform-origin: top right; }
+}
+@media (pointer: coarse) and (max-width: 550px) {
+  .plot-card { max-width: 158px; }
+  #hud .brand { display: none; }
+}

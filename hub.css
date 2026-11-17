@@ -139,3 +139,12 @@ body.playing { overflow: hidden; }
 .player-bar strong { font-size: .88rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .player-frame { flex: 1; min-height: 0; }
 .player-frame iframe { width: 100%; height: 100%; display: block; border: 0; }
+.rotate-prompt {
+  position: absolute; inset: 42px 0 0; display: grid; place-content: center; justify-items: center;
+  text-align: center; padding: 25px; background: radial-gradient(ellipse at center, #172d49, #060d1c 75%);
+}
+.rotate-mark { color: #9ed4ff; font-size: 2.6rem; }
+.rotate-prompt h2 { margin: 6px 0 8px; font-size: 1.4rem; }
+.rotate-prompt p { color: var(--muted); max-width: 30ch; line-height: 1.5; margin: 0; }
+.player-bar { position: relative; z-index: 1; }
+.player-frame.waiting-for-landscape { visibility: hidden; }

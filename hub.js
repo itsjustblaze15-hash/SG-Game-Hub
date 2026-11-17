@@ -9,6 +9,9 @@ const orderStatus = document.querySelector('#order-status');
 const player = document.querySelector('#player');
 const playerFrame = document.querySelector('#player-frame');
 const exitGame = document.querySelector('#exit-game');
+const rotatePrompt = document.querySelector('#rotate-prompt');
+const portraitPhone = matchMedia('(orientation: portrait) and (pointer: coarse), (orientation: portrait) and (max-width: 600px)');
+const portraitGames = new Set(['fus', 'gp']);
 const play = document.querySelector('#play');
 const orderKey = 'sg-library-order-v1';
 let editing = false;
@@ -16,21 +19,36 @@ let order = loadOrder();
 let drag = null;
 let selectedGame = null;
 let launcher = null;
+let playingGame = null;
 
 function closeGame() {
   if (player.hidden) return;
   player.hidden = true;
   playerFrame.replaceChildren();
+  playingGame = null;
   document.body.classList.remove('playing');
   launcher?.focus({ preventScroll: true });
 }
 
+function syncPlayerOrientation() {
+  if (!playingGame) return;
+  const needsRotation = !portraitGames.has(playingGame.id) && portraitPhone.matches;
+  rotatePrompt.hidden = !needsRotation;
+  playerFrame.classList.toggle('waiting-for-landscape', needsRotation);
+  playerFrame.inert = needsRotation;
+  if (needsRotation || playerFrame.firstElementChild) return;
+
+  const frame = document.createElement('iframe');
+  frame.title = playingGame.name;
+  frame.src = playingGame.play;
+  playerFrame.replaceChildren(frame);
+}
+portraitPhone.addEventListener('change', syncPlayerOrientation);
+
 function startGame(game) {
   if (!game?.play || !player.hidden) return;
-  const frame = document.createElement('iframe');
-  frame.title = game.name;
-  frame.src = game.play;
-  playerFrame.replaceChildren(frame);
+  playingGame = game;
+  syncPlayerOrientation();
   document.querySelector('#player-title').textContent = game.name;
   dialog.close();
   player.hidden = false;

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#153f3c"><meta name="description" content="A hands-on first-person car-flipping simulator. Buy forgotten cars, salvage compatible parts, rebuild them, and grow your own workshop."><title>Second Chance · Motor Co.</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="polish.css"><link rel="stylesheet" href="../touch-controls.css"><link rel="stylesheet" href="phone.css"></head>
+<body>
+<canvas id="world" aria-label="First person workshop and salvage yard"></canvas>
+<div id="hud" class="hidden">
+ <div class="brand"><div class="brand-mark">SC<span>↗</span></div><div>SECOND CHANCE<small>MOTOR CO.</small></div></div>
+ <div class="balance"><small>AVAILABLE FUNDS</small><strong id="money">$3,500</strong><span id="save-dot">● ALL PROGRESS SAVED</span></div>
+ <div id="objective"><div id="workflow" aria-label="Your flipping progress"></div><small id="objective-label">YOUR NEXT MOVE</small><h3 id="objective-text"></h3><p id="objective-sub"></p><div id="car-condition"></div></div>
+ <div id="compass">WORKSHOP <span>·</span> SALVAGE YARD</div>
+ <div id="crosshair"></div>
+ <div id="target" class="hidden"><span id="target-tag"></span><h3 id="target-title"></h3><p id="target-desc"></p><div id="target-action"></div></div>
+ <div id="action-progress" class="hidden"><small id="action-label"></small><div><i id="action-bar"></i></div></div>
+ <div id="carry" class="hidden"></div>
+ <div id="toolbelt"></div>
+ <div class="controls"><span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Sprint</span><span><kbd>E</kbd> Interact</span><span><kbd>R</kbd> Report</span><span><kbd>ESC</kbd> Pause</span></div>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<div id="screen" class="hidden"></div>
+<div id="welcome">
+ <div class="intro-eyebrow"><span></span> BUY. FIX. UPGRADE. SELL. BUILD BIGGER.</div>
+ <h1>Second<br>Chance<span>Motor Co.</span></h1>
+ <p>Your corner of the world. Your next second chance.<br>Buy forgotten cars. Bring them back to life.</p>
+ <button id="start" class="primary big">OPEN THE SHOP <span>↗</span></button>
+ <div class="intro-notes"><span>FIRST-PERSON MECHANIC SIM</span><span>AUTO-SAVES YOUR PROGRESS</span></div>
+ <div class="intro-bottom"><span>EST. 2026 · YOUR OWN CORNER OF THE WORLD</span><span>HEADPHONES RECOMMENDED</span></div>
+</div>
+<div id="boot"><div class="brand-mark">SC↗</div><p>Opening the workshop…</p></div>
+<script src="../touch-controls.js"></script><script type="module" src="game.js"></script>
+</body></html>
