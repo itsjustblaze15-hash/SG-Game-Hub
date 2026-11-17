@@ -66,8 +66,8 @@ const games = [
     "description": "Take to the track in a racing adventure with a story. Race the circuit and follow the journey home.",
     "cover": "assets/apex-circuit.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/apex-circuit/"
   },
   {
     "id": "second-chance",
@@ -86,8 +86,8 @@ const games = [
     "description": "Choose an operator and fight through the island to take back the coast. This version includes the Operators & Airlift update.",
     "cover": "assets/blacktide.jpg",
     "macSupported": true,
-    "iPhoneSupported": false,
-    "play": null
+    "iPhoneSupported": true,
+    "play": "games/blacktide/"
   },
   {
     "id": "police-patrol-simulator",
@@ -190,3 +190,4 @@ const games = [
     "play": null
   }
 ];
+

@@ -4,7 +4,9 @@
   const response=await fetch('game.html.gz');
   if(!response.ok)throw Error('Download failed');
   const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
-  const html=await new Response(stream).text();
+  const html=(await new Response(stream).text())
+    .replace('m={rig:{ready:false,dispose(){}},used:0}', 'm={rig:{ready:false,queue:[],draw(){},dispose(){}},used:0}')
+    .replace('Object.assign(pending,ready);', 'Object.assign(pending.rig,ready.rig);ready.rig=pending.rig;Object.assign(pending,ready);');
   document.open();document.write(html);document.close();
  }catch(error){document.getElementById('loading').textContent='The island could not load. Return to SG and try again.';console.error(error);}
 })();
