@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>BLACKTIDE ISLAND</title><style>body{margin:0;background:#0d1723;color:#dae5ed;font:16px system-ui;display:grid;min-height:100dvh;place-content:center;text-align:center}p{color:#9bb0c6}</style></head><body><h1>BLACKTIDE</h1><p id="loading">Opening the island…</p><script>
+(async()=>{
+ try{
+  const response=await fetch('game.html.gz');
+  if(!response.ok)throw Error('Download failed');
+  const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
+  const html=await new Response(stream).text();
+  document.open();document.write(html);document.close();
+ }catch(error){document.getElementById('loading').textContent='The island could not load. Return to SG and try again.';console.error(error);}
+})();
+</script></body></html>
