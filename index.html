@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#060d1c">
 <title>SG · Game Hub</title>
 <link rel="icon" href="assets/sg-logo.png">
-<link rel="apple-touch-icon" href="assets/sg-180.png">
+<link rel="apple-touch-icon" href="assets/sg-180.png?v=2">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="hub.css">
 <script defer src="catalog.js"></script>
@@ -16,15 +16,17 @@
 <header class="site-header">
   <div class="topbar">
     <a class="brand" href="./"><img src="assets/sg-logo.png" width="42" height="42" alt="SG"><span>Game Hub</span></a>
-    <label class="search"><span class="search-icon" aria-hidden="true"></span><input id="search" type="search" autocomplete="off" placeholder="Search your games" aria-label="Search your games"></label>
+    <label class="search"><span class="search-icon" aria-hidden="true"></span><input id="search" type="search" autocomplete="off" placeholder="Search games" aria-label="Search your games"></label>
   </div>
 </header>
 <main>
   <div class="library-heading">
     <h1>All games <span id="count" aria-live="polite"></span></h1>
-    <div id="legend"></div>
+    <div class="library-tools"><div id="legend"></div><button type="button" id="reorder" aria-pressed="false">Reorder</button></div>
   </div>
+  <p class="reorder-help" id="reorder-help" hidden>Drag the handle or use the arrows to move a game.</p>
   <div class="grid" id="games"></div>
+  <div class="sr-only" id="order-status" aria-live="polite"></div>
   <p class="empty" id="empty" hidden>No games match your search.</p>
 </main>
 <dialog id="details" aria-labelledby="game-title">

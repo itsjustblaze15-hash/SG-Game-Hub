@@ -487,9 +487,38 @@ kbd { font: 600 10px/1 var(--sans); border: 1px solid #54401f7a; border-radius: 
   .hub-ident .emblem span { width: 14px; height: 14px; font-size: 10px; }
 }
 
+
+.rotate-screen { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  body { overflow: hidden; }
+  .rotate-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-content: center;
+    text-align: center;
+    padding: 28px;
+    color: var(--ink);
+    background: radial-gradient(ellipse at center, #293128, var(--base));
+  }
+  .rotate-screen .emblem { margin: 0 auto 16px; }
+  .rotate-screen h2 { margin: 0 0 9px; font-family: var(--display); font-size: 1.8rem; }
+  .rotate-screen p { margin: 0 auto; max-width: 30ch; color: var(--muted); line-height: 1.5; }
+  .rotate-screen a { margin-top: 18px; color: var(--gold); }
+}
+@media (orientation: landscape) and (pointer: coarse) {
+  #app { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
 </style>
 </head>
 <body>
+<section class="rotate-screen" aria-labelledby="rotate-title">
+  <span class="emblem" aria-hidden="true"><span>8</span></span>
+  <h2 id="rotate-title">Turn your phone sideways</h2>
+  <p>Eight Ball plays in landscape. If the screen stays upright, turn off Portrait Orientation Lock.</p>
+  <a href="../../">Back to SG</a>
+</section>
 <div id="app">
   <header class="masthead">
     <div class="brand">
@@ -2707,6 +2736,16 @@ function frame(now) {
 requestAnimationFrame(frame);
 })();
 
+</script>
+<script>
+const portraitTouch = matchMedia('(orientation: portrait) and (pointer: coarse)');
+function updateOrientation() {
+  const app = document.getElementById('app');
+  if (portraitTouch.matches && app.contains(document.activeElement)) document.activeElement.blur();
+  app.inert = portraitTouch.matches;
+}
+portraitTouch.addEventListener('change', updateOrientation);
+updateOrientation();
 </script>
 </body>
 </html>

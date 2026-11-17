@@ -92,3 +92,31 @@ body:has(dialog[open]) { overflow: hidden; }
   main { padding-top: 18px; }
   .grid { gap: 10px; }
 }
+.library-heading { align-items: center; }
+.library-tools { display: flex; align-items: center; gap: 12px; }
+#reorder {
+  min-height: 36px; padding: 6px 10px; border-radius: 8px;
+  color: #d4e9ff; background: #132644; border: 1px solid var(--line); cursor: pointer;
+  font-size: .8rem; font-weight: 660;
+}
+#reorder[aria-pressed="true"] { color: #0b1930; background: #dfedff; }
+.reorder-help { color: var(--muted); font-size: .83rem; margin: -5px 0 14px; }
+.game-tile { min-width: 0; display: flex; flex-direction: column; }
+.game-card { width: 100%; flex: 1; }
+.game-tile.dragging { opacity: .5; }
+.game-tile.drop-target { outline: 2px solid #9fceff; outline-offset: 3px; border-radius: 13px; }
+.move-tools { display: flex; justify-content: space-between; gap: 5px; margin-top: 5px; }
+.move-tools button {
+  min-width: 36px; min-height: 38px; padding: 0 8px; border: 1px solid var(--line);
+  border-radius: 8px; color: #d4e9ff; background: #132644; cursor: pointer;
+}
+.move-tools button:disabled { opacity: .37; cursor: default; }
+.move-tools .drag-handle { flex: 1; touch-action: none; user-select: none; cursor: grab; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 510px) {
+  .library-tools { gap: 6px; }
+  #reorder { padding-inline: 7px; }
+  #legend { gap: 2px; font-size: .67rem; }
+  #legend .device { width: 19px; }
+  .search { width: min(51%, 265px); }
+}

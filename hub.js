@@ -3,6 +3,88 @@ const grid = document.querySelector('#games');
 const count = document.querySelector('#count');
 const empty = document.querySelector('#empty');
 const dialog = document.querySelector('#details');
+const reorder = document.querySelector('#reorder');
+const reorderHelp = document.querySelector('#reorder-help');
+const orderStatus = document.querySelector('#order-status');
+const orderKey = 'sg-library-order-v1';
+let editing = false;
+let order = loadOrder();
+let drag = null;
+
+function loadOrder() {
+  const currentIds = games.map(game => game.id);
+  try {
+    const saved = JSON.parse(localStorage.getItem(orderKey));
+    if (!Array.isArray(saved)) return currentIds;
+    return [...new Set([...saved.filter(id => currentIds.includes(id)), ...currentIds])];
+  } catch {
+    return currentIds;
+  }
+}
+
+function moveGame(fromId, toId, focusAction) {
+  const from = order.indexOf(fromId);
+  const to = order.indexOf(toId);
+  if (from < 0 || to < 0 || from === to) return;
+  order.splice(from, 1);
+  order.splice(to, 0, fromId);
+  try { localStorage.setItem(orderKey, JSON.stringify(order)); } catch {}
+  render();
+  const moved = [...grid.children].find(tile => tile.dataset.game === fromId);
+  if (focusAction) {
+    const control = moved?.querySelector('[data-move="' + focusAction + '"]:enabled');
+    (control || moved?.querySelector('.drag-handle'))?.focus({ preventScroll: true });
+  }
+  orderStatus.textContent = games.find(game => game.id === fromId).name +
+    ' moved to position ' + (to + 1) + '.';
+}
+
+function moveControls(game, index) {
+  const tools = document.createElement('div');
+  tools.className = 'move-tools';
+  const handle = document.createElement('button');
+  handle.type = 'button';
+  handle.className = 'drag-handle';
+  handle.textContent = '⠿';
+  handle.setAttribute('aria-label', 'Drag ' + game.name);
+  handle.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    handle.setPointerCapture(event.pointerId);
+    drag = {id: game.id, pointer: event.pointerId, tile: handle.closest('.game-tile'), target: null};
+    drag.tile.classList.add('dragging');
+  });
+  handle.addEventListener('pointermove', event => {
+    if (drag?.pointer !== event.pointerId) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.game-tile');
+    drag.target?.classList.remove('drop-target');
+    drag.target = target && target !== drag.tile ? target : null;
+    drag.target?.classList.add('drop-target');
+  });
+  function stopDrag(event, save) {
+    if (drag?.pointer !== event.pointerId) return;
+    const {id, tile, target} = drag;
+    drag = null;
+    tile.classList.remove('dragging');
+    target?.classList.remove('drop-target');
+    if (save && target) moveGame(id, target.dataset.game);
+  }
+  handle.addEventListener('pointerup', event => stopDrag(event, true));
+  handle.addEventListener('pointercancel', event => stopDrag(event, false));
+  handle.addEventListener('lostpointercapture', event => stopDrag(event, false));
+  tools.append(handle);
+  for (const [offset, glyph, label] of [[-1, '←', 'earlier'], [1, '→', 'later']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = glyph;
+    button.setAttribute('aria-label', 'Move ' + game.name + ' ' + label);
+    button.dataset.move = label;
+    const neighbor = order[index + offset];
+    button.disabled = !neighbor;
+    button.addEventListener('click', () => moveGame(game.id, neighbor, label));
+    tools.append(button);
+  }
+  return tools;
+}
 
 function icon(platform, supported) {
   const status = document.createElement('span');
@@ -40,6 +122,9 @@ function openGame(game) {
 }
 
 function gameCard(game) {
+  const tile = document.createElement('div');
+  tile.className = 'game-tile';
+  tile.dataset.game = game.id;
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'game-card';
@@ -58,12 +143,15 @@ function gameCard(game) {
   name.textContent = game.name;
   copy.append(name, devices(game));
   card.append(cover, copy);
-  return card;
+  tile.append(card);
+  if (editing) tile.append(moveControls(game, order.indexOf(game.id)));
+  return tile;
 }
 
 function render() {
   const query = search.value.trim().toLocaleLowerCase();
-  const results = games.filter(game => game.name.toLocaleLowerCase().includes(query));
+  const results = order.map(id => games.find(game => game.id === id))
+    .filter(game => game.name.toLocaleLowerCase().includes(query));
   count.textContent = results.length;
   empty.hidden = results.length !== 0;
   grid.replaceChildren(...results.map(gameCard));
@@ -74,6 +162,15 @@ legend.append(icon('mac', true), 'Mac', icon('iphone', true), 'iPhone');
 legend.querySelectorAll('.device').forEach(item => {
   item.setAttribute('aria-hidden', 'true');
   item.removeAttribute('title');
+});
+reorder.addEventListener('click', () => {
+  editing = !editing;
+  reorder.setAttribute('aria-pressed', String(editing));
+  reorder.textContent = editing ? 'Done' : 'Reorder';
+  reorderHelp.hidden = !editing;
+  search.disabled = editing;
+  if (editing) search.value = '';
+  render();
 });
 search.addEventListener('input', render);
 dialog.addEventListener('click', event => {

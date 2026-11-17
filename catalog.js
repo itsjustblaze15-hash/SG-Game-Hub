@@ -1,15 +1,5 @@
 const games = [
   {
-    "id": "eight-ball",
-    "name": "Eight Ball",
-    "subtitle": "8-BALL POOL · 1 ON 1 & LOCAL PLAY",
-    "description": "Rack up for 1-on-1 pool, pass-and-play, or solo practice. Earn levels and unlock new table finishes and cues.",
-    "cover": "assets/eight-ball.jpg",
-    "macSupported": true,
-    "iPhoneSupported": true,
-    "play": "games/eight-ball/"
-  },
-  {
     "id": "ben10-open-world",
     "name": "Ben 10: Open World",
     "subtitle": "OPEN WORLD · V34",
@@ -58,6 +48,16 @@ const games = [
     "macSupported": true,
     "iPhoneSupported": true,
     "play": "https://itsjustblaze15-hash.github.io/Card-game/"
+  },
+  {
+    "id": "eight-ball",
+    "name": "Eight Ball",
+    "subtitle": "8-BALL POOL · 1 ON 1 & LOCAL PLAY",
+    "description": "Rack up for 1-on-1 pool, pass-and-play, or solo practice. Earn levels and unlock new table finishes and cues.",
+    "cover": "assets/eight-ball.jpg",
+    "macSupported": true,
+    "iPhoneSupported": true,
+    "play": "games/eight-ball/"
   },
   {
     "id": "apex-circuit",
