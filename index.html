@@ -39,10 +39,17 @@
     <h2 id="game-title"></h2>
     <p id="game-description"></p>
     <div id="game-devices"></div>
-    <a id="play" class="play" hidden>Play now</a>
+    <button type="button" id="play" class="play" hidden>Play now</button>
     <p id="availability" class="availability" hidden>Playable in SG on Mac.</p>
   </div>
 </dialog>
+<section id="player" class="player" aria-labelledby="player-title" hidden>
+  <header class="player-bar">
+    <button type="button" id="exit-game">‹ Back to SG</button>
+    <strong id="player-title"></strong>
+  </header>
+  <div id="player-frame" class="player-frame"></div>
+</section>
 <noscript>Enable JavaScript to view the SG library.</noscript>
 </body>
 </html>

@@ -6,10 +6,45 @@ const dialog = document.querySelector('#details');
 const reorder = document.querySelector('#reorder');
 const reorderHelp = document.querySelector('#reorder-help');
 const orderStatus = document.querySelector('#order-status');
+const player = document.querySelector('#player');
+const playerFrame = document.querySelector('#player-frame');
+const exitGame = document.querySelector('#exit-game');
+const play = document.querySelector('#play');
 const orderKey = 'sg-library-order-v1';
 let editing = false;
 let order = loadOrder();
 let drag = null;
+let selectedGame = null;
+let launcher = null;
+
+function closeGame() {
+  if (player.hidden) return;
+  player.hidden = true;
+  playerFrame.replaceChildren();
+  document.body.classList.remove('playing');
+  launcher?.focus({ preventScroll: true });
+}
+
+function startGame(game) {
+  if (!game?.play || !player.hidden) return;
+  const frame = document.createElement('iframe');
+  frame.title = game.name;
+  frame.src = game.play;
+  playerFrame.replaceChildren(frame);
+  document.querySelector('#player-title').textContent = game.name;
+  dialog.close();
+  player.hidden = false;
+  document.body.classList.add('playing');
+  history.pushState({ sgPlayer: true }, '');
+  exitGame.focus({ preventScroll: true });
+}
+
+play.addEventListener('click', () => startGame(selectedGame));
+exitGame.addEventListener('click', () => {
+  closeGame();
+  if (history.state?.sgPlayer) history.back();
+});
+window.addEventListener('popstate', closeGame);
 
 function loadOrder() {
   const currentIds = games.map(game => game.id);
@@ -108,14 +143,13 @@ function devices(game) {
 }
 
 function openGame(game) {
+  selectedGame = game;
+  launcher = document.activeElement;
   document.querySelector('#game-cover').src = game.cover;
   document.querySelector('#game-title').textContent = game.name;
   document.querySelector('#game-genre').textContent = game.subtitle;
   document.querySelector('#game-description').textContent = game.description;
   document.querySelector('#game-devices').replaceChildren(devices(game));
-  const play = document.querySelector('#play');
-  if (game.play) play.href = game.play;
-  else play.removeAttribute('href');
   play.hidden = !game.play;
   document.querySelector('#availability').hidden = !!game.play;
   dialog.showModal();
