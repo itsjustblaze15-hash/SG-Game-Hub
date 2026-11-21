@@ -197,6 +197,6 @@ const games = [
     "cover": "assets/pitchside.jpg",
     "macSupported": true,
     "iPhoneSupported": true,
-    "play": "games/pitchside/"
+    "play": "games/pitchside/mobile.html?v=smooth-1"
   }
 ];
