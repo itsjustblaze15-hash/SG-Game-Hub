@@ -112,6 +112,17 @@ function bindCombatButton(id,held,action){`);
     "const image=data==='sg-asset-004.png'?sgGearImage:sgFoliageImage;");
   replaceOnce('await v9LoadAtlas();await prepareNavigation();',
     'await Promise.all([v9LoadAtlas(),prepareNavigation()]);');
+  // Phone matches can start while optional cosmetic outfits finish streaming.
+  replaceOnce('for(let i=0;i<320&&rigs.some(r=>!r.ready);i++)',
+    'for(let i=0;i<(isTouch?120:320)&&rigs.some(r=>!r.ready);i++)');
+  for (const delay of [1200,1300,1800]) {
+    replaceOnce('await v36Delay('+delay+');if(token!==br.matchToken)return;',
+      'await v36Delay(isTouch?100:'+delay+');if(token!==br.matchToken)return;');
+  }
+  replaceOnce('for(let n=3;n>0;n--)',
+    'for(let n=isTouch?1:3;n>0;n--)');
+  replaceOnce('await v36Delay(1000);if(token!==br.matchToken)return;',
+    'await v36Delay(isTouch?300:1000);if(token!==br.matchToken)return;');
   replaceOnce('</head>', '<link rel="stylesheet" href="phone.css?v=20261121-1"></head>');
   return source;
 };
