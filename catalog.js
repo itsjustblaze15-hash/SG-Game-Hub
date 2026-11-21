@@ -188,6 +188,15 @@ const games = [
     "macSupported": true,
     "iPhoneSupported": false,
     "play": null
+  },
+  {
+    "id": "pitchside",
+    "name": "PITCHSIDE",
+    "subtitle": "FOOTBALL · MATCH SIMULATOR",
+    "description": "Follow simulated football matches, make picks, and build your in-game bankroll.",
+    "cover": "assets/pitchside.jpg",
+    "macSupported": true,
+    "iPhoneSupported": true,
+    "play": "games/pitchside/"
   }
 ];
-
