@@ -13,6 +13,43 @@ const rotatePrompt = document.querySelector('#rotate-prompt');
 const portraitPhone = matchMedia('(orientation: portrait) and (pointer: coarse), (orientation: portrait) and (max-width: 600px)');
 const portraitGames = new Set(['fus', 'gp']);
 const play = document.querySelector('#play');
+const phoneBuild = '2026-11-21.1';
+const repairedGames = new Set(['motor-dynasty', 'redwood', 'second-chance', 'apex-circuit', 'blacktide']);
+const phoneLayout = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-height: 550px) and (max-width: 1100px)');
+const refreshHub = document.querySelector('#refresh-hub');
+refreshHub.addEventListener('click', () => {
+  refreshHub.disabled = true;
+  refreshHub.setAttribute('aria-label', 'Refreshing SG');
+  const url = new URL(location.href);
+  url.searchParams.set('sg-refresh', String(Date.now()));
+  location.replace(url.href);
+});
+
+function sizePlayerToScreen() {
+  const viewport = window.visualViewport;
+  player.style.setProperty('--player-height', (viewport?.height || innerHeight) + 'px');
+  player.style.setProperty('--player-top', (viewport?.offsetTop || 0) + 'px');
+}
+window.visualViewport?.addEventListener('resize', sizePlayerToScreen);
+window.visualViewport?.addEventListener('scroll', sizePlayerToScreen);
+window.addEventListener('resize', sizePlayerToScreen);
+
+function applyPhoneLayout(frame, game) {
+  if (!repairedGames.has(game.id) || !phoneLayout.matches) return;
+  try {
+    const doc = frame.contentDocument;
+    if (!doc?.head) return;
+    doc.documentElement.dataset.sgPhoneGame = game.id;
+    if (doc.getElementById('sg-phone-layout')) return;
+    const style = doc.createElement('link');
+    style.id = 'sg-phone-layout';
+    style.rel = 'stylesheet';
+    style.href = new URL('phone/game-layout.css?v=' + phoneBuild, location.href).href;
+    doc.head.append(style);
+  } catch (error) {
+    console.warn('SG could not apply the phone layout', error);
+  }
+}
 const orderKey = 'sg-library-order-v1';
 let editing = false;
 let order = loadOrder();
@@ -27,6 +64,8 @@ function closeGame() {
   playerFrame.replaceChildren();
   playingGame = null;
   document.body.classList.remove('playing');
+  if (history.state?.sgHub) history.replaceState({sgHub: true, sgPlayer: false}, '');
+
   launcher?.focus({ preventScroll: true });
 }
 
@@ -40,7 +79,13 @@ function syncPlayerOrientation() {
 
   const frame = document.createElement('iframe');
   frame.title = playingGame.name;
-  frame.src = playingGame.play;
+  const game = playingGame;
+  const source = new URL(game.play, location.href);
+  if (repairedGames.has(game.id)) source.searchParams.set('sg-version', phoneBuild);
+  const refreshed = new URL(location.href).searchParams.get('sg-refresh');
+  if (refreshed) source.searchParams.set('sg-refresh', refreshed);
+  frame.src = source.href;
+  frame.addEventListener('load', () => applyPhoneLayout(frame, game));
   playerFrame.replaceChildren(frame);
 }
 portraitPhone.addEventListener('change', syncPlayerOrientation);
@@ -53,14 +98,16 @@ function startGame(game) {
   dialog.close();
   player.hidden = false;
   document.body.classList.add('playing');
-  history.pushState({ sgPlayer: true }, '');
+  sizePlayerToScreen();
+  if (history.state?.sgHub) history.replaceState({ sgHub: true, sgPlayer: true }, '');
+  else history.pushState({ sgHub: true, sgPlayer: true }, '');
   exitGame.focus({ preventScroll: true });
 }
 
 play.addEventListener('click', () => startGame(selectedGame));
 exitGame.addEventListener('click', () => {
   closeGame();
-  if (history.state?.sgPlayer) history.back();
+
 });
 window.addEventListener('popstate', closeGame);
 

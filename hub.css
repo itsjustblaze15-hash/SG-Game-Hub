@@ -148,3 +148,41 @@ body.playing { overflow: hidden; }
 .rotate-prompt p { color: var(--muted); max-width: 30ch; line-height: 1.5; margin: 0; }
 .player-bar { position: relative; z-index: 1; }
 .player-frame.waiting-for-landscape { visibility: hidden; }
+.refresh-hub {
+  display: none; flex: 0 0 34px; width: 34px; height: 36px; padding: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: #102039; color: #bddcff; font-size: 24px;
+  cursor: pointer; touch-action: manipulation;
+}
+@media (pointer: coarse), (max-width: 840px) {
+  .refresh-hub { display: block; }
+  .topbar .search { margin-left: auto; }
+}
+@media (max-width: 510px) {
+  .topbar { gap: 7px; }
+  .brand { font-size: 1rem; gap: 5px; }
+  .topbar .search { width: auto; flex: 1; }
+}
+.player {
+  top: var(--player-top, 0px); bottom: auto;
+  height: var(--player-height, 100dvh); max-height: 100dvh;
+  isolation: isolate; overflow: hidden;
+}
+.player-bar { flex: 0 0 44px; min-height: 44px; z-index: 5; touch-action: manipulation; }
+.player-bar button { min-height: 44px; padding-inline: 8px; }
+.player-frame { position: relative; min-width: 0; overflow: hidden; contain: size layout; }
+.player-frame iframe { position: absolute; inset: 0; }
+.rotate-prompt { top: 44px; }
+@media (max-height: 550px) and (max-width: 1100px) and (orientation: landscape) {
+  .refresh-hub { display: block; }
+  dialog[open] {
+    width: min(720px, calc(100% - 24px));
+    display: grid; grid-template-columns: 38% minmax(0, 1fr);
+  }
+  .detail-cover { min-height: 100%; }
+  .detail-cover img { height: 100%; aspect-ratio: auto; position: absolute; inset: 0; }
+  .detail-content { padding: 14px; max-height: calc(100dvh - 26px); overflow-y: auto; }
+  .detail-content h2 { font-size: 24px; }
+  #game-description { font-size: 14px; line-height: 1.35; margin-block: 8px; }
+  .play { margin-top: 10px; }
+}

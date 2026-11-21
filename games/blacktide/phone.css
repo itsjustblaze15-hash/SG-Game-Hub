@@ -1,0 +1,38 @@
+@media (pointer: coarse), (max-height: 550px) and (max-width: 1100px) {
+  body.playing #mobileUI { display: block; }
+  #lobby { overflow-y: auto; max-height: 100dvh; }
+  #settingsPanel { max-height: 100dvh; overflow-y: auto; padding: 10px; }
+  .settingsCard, .settings-panel, .settingsContent { max-height: calc(100dvh - 20px); overflow-y: auto; }
+  #sg-phone-options { border-top: 1px solid #50616d; margin-top: 12px; padding-top: 8px; }
+  #sg-phone-options h3 { font: 700 16px system-ui; }
+  #sg-phone-options .settingRow { gap: 8px; }
+  #sg-phone-options label { font-size: 14px; }
+  #sg-aim-mode { font-size: 14px; min-height: 38px; max-width: 170px; }
+  #sgPhoneSettings { right: 12px; top: 8px; bottom: auto; width: 72px; height: 34px; font-size: 10px; }
+  #stick { width: 100px; height: 100px; left: 15px; bottom: 15px; }
+  #fireBtn { right: 20px; bottom: 26px; width: 65px; height: 65px; font-size: 13px; }
+  #aimBtn { right: 97px; bottom: 32px; width: 58px; height: 58px; font-size: 11px; }
+  #aimBtn[aria-pressed="true"] { background: #517c56eb; border-color: #a2e6ac; }
+  #reloadBtn { right: 20px; bottom: 108px; width: 45px; height: 40px; }
+  #switchBtn { right: 76px; bottom: 111px; width: 45px; height: 40px; }
+  #jumpBtn { left: 135px; bottom: 18px; width: 44px; height: 40px; }
+  #sprintBtn { left: 135px; bottom: 66px; width: 44px; height: 40px; }
+  #crouchBtn { left: 188px; bottom: 18px; width: 44px; height: 40px; }
+  #interactBtn { right: 130px; bottom: 112px; width: 44px; height: 40px; }
+  #grenadeBtn { right: 185px; bottom: 112px; width: 44px; height: 40px; }
+  #healthPanel { left: 10px; bottom: auto; top: 8px; font-size: 10px; padding: 4px 7px; }
+  #healthValue, #armorValue { font-size: 16px; }
+  #ammoPanel { right: 105px; bottom: auto; top: 8px; }
+  #ammoPanel b { font-size: 21px; }
+  #matchBar { top: 8px; max-width: 40vw; font-size: 10px; padding: 4px 7px; }
+  body.sg-compact-hud #topLeft,
+  body.sg-compact-hud #compass,
+  body.sg-compact-hud #bottom,
+  body.sg-compact-hud #objectiveText,
+  body.sg-compact-hud #killFeed,
+  body.sg-compact-hud #operationHUD,
+  body.sg-compact-hud #leanLeftBtn,
+  body.sg-compact-hud #leanRightBtn,
+  body.sg-compact-hud #slideBtn,
+  body.sg-compact-hud #mobileHint { display: none !important; }
+}

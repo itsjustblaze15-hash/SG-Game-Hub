@@ -1,0 +1,115 @@
+/* Applied by SG only to the five iPhone game views being repaired. */
+html[data-sg-phone-game] { -webkit-text-size-adjust: 100%; }
+
+html[data-sg-phone-game="motor-dynasty"] .modal-overlay {
+  height: 100dvh;
+  overflow-y: auto;
+  align-items: start;
+  overscroll-behavior: contain;
+  padding: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-sg-phone-game="motor-dynasty"] .modal {
+  margin: auto;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 18px;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-sg-phone-game="motor-dynasty"] .modal h1 { font-size: 26px; }
+html[data-sg-phone-game="motor-dynasty"] .modal input,
+html[data-sg-phone-game="motor-dynasty"] .modal select { font-size: 16px; }
+html[data-sg-phone-game="motor-dynasty"] .stage canvas { min-height: 210px; }
+
+html[data-sg-phone-game="apex-circuit"] .screen {
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-sg-phone-game="apex-circuit"] .screen > .content {
+  flex: 0 0 auto;
+  margin: 0 auto !important;
+  padding: 16px !important;
+  max-width: 100%;
+}
+html[data-sg-phone-game="apex-circuit"] .screen-scroll { min-height: 0; }
+html[data-sg-phone-game="apex-circuit"] #screen-menu .menu-official-logo { max-height: 90px; }
+html[data-sg-phone-game="apex-circuit"] #screen-menu .content > div[style*="64px"] { font-size: 36px !important; }
+html[data-sg-phone-game="apex-circuit"] .rc-dialog {
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
+  padding: 16px;
+}
+html[data-sg-phone-game="apex-circuit"] dialog,
+html[data-sg-phone-game="apex-circuit"] [class*="story-menu"] {
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
+html[data-sg-phone-game="apex-circuit"] .btn { min-height: 42px; }
+
+html[data-sg-phone-game="redwood"] #hud > .brand,
+html[data-sg-phone-game="redwood"] .mini-card,
+html[data-sg-phone-game="redwood"] .tool-card,
+html[data-sg-phone-game="redwood"] .clock,
+html[data-sg-phone-game="redwood"] .bottom-hint { display: none !important; }
+html[data-sg-phone-game="redwood"] .resources {
+  left: 8px; top: 8px; gap: 5px;
+}
+html[data-sg-phone-game="redwood"] .resource {
+  min-width: 0; padding: 6px 9px; gap: 6px; border-radius: 9px;
+}
+html[data-sg-phone-game="redwood"] .resource svg { width: 17px; height: 17px; }
+html[data-sg-phone-game="redwood"] .resource strong { font-size: 17px; }
+html[data-sg-phone-game="redwood"] .resource label { font-size: 10px; letter-spacing: .3px; margin-bottom: 2px; }
+html[data-sg-phone-game="redwood"] .bag-meter { height: 3px; }
+html[data-sg-phone-game="redwood"] .plot-card {
+  left: 8px; top: 66px; width: 155px; padding: 7px 9px; border-radius: 9px;
+}
+html[data-sg-phone-game="redwood"] .plot-card .eyebrow,
+html[data-sg-phone-game="redwood"] .farm-line,
+html[data-sg-phone-game="redwood"] .plot-card .progress-label { display: none; }
+html[data-sg-phone-game="redwood"] .plot-line strong { font-size: 14px; }
+html[data-sg-phone-game="redwood"] .plot-line > span { padding: 3px 5px; }
+html[data-sg-phone-game="redwood"] .plot-card .progress { margin-top: 5px; height: 4px; }
+html[data-sg-phone-game="redwood"] .top-actions { top: 8px; right: 8px; gap: 5px; }
+html[data-sg-phone-game="redwood"] .top-actions button { width: 38px; height: 38px; }
+html[data-sg-phone-game="redwood"] .welcome { margin: 0; }
+html[data-sg-phone-game="redwood"] .modal { padding: 20px; max-height: calc(100dvh - 18px); }
+html[data-sg-phone-game="redwood"] #interaction { bottom: 100px; }
+
+html[data-sg-phone-game="second-chance"] #hud > .brand,
+html[data-sg-phone-game="second-chance"] #compass { display: none !important; }
+html[data-sg-phone-game="second-chance"] #objective {
+  display: block !important; left: 8px; top: 8px; width: 180px; max-width: 32vw;
+  padding: 7px 9px; border-radius: 9px;
+}
+html[data-sg-phone-game="second-chance"] #objective h3 { font-size: 13px; margin: 4px 0 0; }
+html[data-sg-phone-game="second-chance"] #objective p,
+html[data-sg-phone-game="second-chance"] #objective small,
+html[data-sg-phone-game="second-chance"] #car-condition { display: none; }
+html[data-sg-phone-game="second-chance"] #workflow { font-size: 10px; gap: 3px; }
+html[data-sg-phone-game="second-chance"] .balance {
+  top: 8px; right: 8px; padding: 6px 9px; min-width: 100px; border-radius: 9px;
+  transform: none !important;
+}
+html[data-sg-phone-game="second-chance"] .balance small { font-size: 9px; letter-spacing: .3px; }
+html[data-sg-phone-game="second-chance"] .balance strong { font-size: 19px; }
+html[data-sg-phone-game="second-chance"] .balance span { display: none; }
+html[data-sg-phone-game="second-chance"] #toolbelt {
+  left: 50%; bottom: 8px; max-width: calc(100vw - 320px);
+  overflow-x: auto; padding: 3px; gap: 1px; border-radius: 9px;
+}
+html[data-sg-phone-game="second-chance"] #toolbelt .tool {
+  flex: 0 0 39px; width: 39px; height: 40px; padding: 2px;
+}
+html[data-sg-phone-game="second-chance"] .tool b { font-size: 15px; line-height: 19px; }
+html[data-sg-phone-game="second-chance"] .tool span { font-size: 9px; }
+html[data-sg-phone-game="second-chance"] #target { bottom: 58px; max-width: 260px; }
+html[data-sg-phone-game="second-chance"] #target h3 { font-size: 15px; }
+html[data-sg-phone-game="second-chance"] #target p { font-size: 11px; }
+html[data-sg-phone-game="second-chance"] #welcome,
+html[data-sg-phone-game="second-chance"] #screen { max-height: 100dvh; overflow-y: auto; }
+html[data-sg-phone-game="second-chance"] .sg-touch-controls { bottom: 8px; }
+html[data-sg-phone-game="second-chance"] .sg-touch-actions { max-width: 160px; }

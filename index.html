@@ -8,14 +8,14 @@
 <link rel="icon" href="assets/sg-logo.png">
 <link rel="apple-touch-icon" href="assets/sg-180.png?v=2">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="hub.css?v=phone-3">
+<link rel="stylesheet" href="hub.css?v=phone-4">
 <script defer src="catalog.js?v=nine-games-1"></script>
-<script defer src="hub.js?v=phone-3"></script>
+<script defer src="hub.js?v=phone-4"></script>
 </head>
 <body>
 <header class="site-header">
   <div class="topbar">
-    <a class="brand" href="./"><img src="assets/sg-logo.png" width="42" height="42" alt="SG"><span>Game Hub</span></a>
+    <a class="brand" href="./"><img src="assets/sg-logo.png" width="42" height="42" alt="SG"><span>Game Hub</span></a><button type="button" id="refresh-hub" class="refresh-hub" aria-label="Refresh SG to the latest version" title="Refresh SG">↻</button>
     <label class="search"><span class="search-icon" aria-hidden="true"></span><input id="search" type="search" autocomplete="off" placeholder="Search games" aria-label="Search your games"></label>
   </div>
 </header>
@@ -45,7 +45,7 @@
 </dialog>
 <section id="player" class="player" aria-labelledby="player-title" hidden>
   <header class="player-bar">
-    <button type="button" id="exit-game">‹ Back to SG</button>
+    <button type="button" id="exit-game">Back to SG</button>
     <strong id="player-title"></strong>
   </header>
   <div class="rotate-prompt" id="rotate-prompt" hidden>

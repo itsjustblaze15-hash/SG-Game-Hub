@@ -1,13 +1,43 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>BLACKTIDE ISLAND</title><style>body{margin:0;background:#0d1723;color:#dae5ed;font:16px system-ui;display:grid;min-height:100dvh;place-content:center;text-align:center}p{color:#9bb0c6}</style></head><body><h1>BLACKTIDE</h1><p id="loading">Opening the island…</p><script>
-(async()=>{
- try{
-  const response=await fetch('game.html.gz');
-  if(!response.ok)throw Error('Download failed');
-  const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
-  const html=(await new Response(stream).text())
-    .replace('m={rig:{ready:false,dispose(){}},used:0}', 'm={rig:{ready:false,queue:[],draw(){},dispose(){}},used:0}')
-    .replace('Object.assign(pending,ready);', 'Object.assign(pending.rig,ready.rig);ready.rig=pending.rig;Object.assign(pending,ready);');
-  document.open();document.write(html);document.close();
- }catch(error){document.getElementById('loading').textContent='The island could not load. Return to SG and try again.';console.error(error);}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BLACKTIDE ISLAND</title>
+<style>
+body{margin:0;background:#0d1723;color:#dae5ed;font:16px system-ui;display:grid;min-height:100dvh;place-content:center;text-align:center}p{color:#9bb0c6}
+</style>
+<script src="phone-transform.js?v=20261121-1"></script>
+</head>
+<body>
+<h1>BLACKTIDE</h1><p id="loading">Opening the island…</p>
+<script>
+(async () => {
+  try {
+    const sourceURL = new URL('game.html.gz', location.href).href;
+    let cache;
+    let response;
+    try {
+      cache = await caches.open('sg-blacktide-source-20261117');
+      response = await cache.match(sourceURL);
+    } catch {}
+    if (!response) {
+      response = await fetch(sourceURL);
+      if (!response.ok) throw new Error('Download failed');
+      if (cache) {
+        try { await cache.put(sourceURL, response.clone()); } catch {}
+      }
+    }
+    const stream = response.body.pipeThrough(new DecompressionStream('gzip'));
+    const html = window.sgPrepareBlacktide(await new Response(stream).text());
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (error) {
+    document.getElementById('loading').textContent = 'The island could not load. Return to SG and try again.';
+    console.error(error);
+  }
 })();
-</script></body></html>
+</script>
+</body>
+</html>
