@@ -124,5 +124,6 @@ function bindCombatButton(id,held,action){`);
   replaceOnce('await v36Delay(1000);if(token!==br.matchToken)return;',
     'await v36Delay(isTouch?300:1000);if(token!==br.matchToken)return;');
   replaceOnce('</head>', '<link rel="stylesheet" href="phone.css?v=20261121-1"></head>');
+  source = source.replace('</body>', '<script src="../mobile-layout.js?v=1"></script></body>');
   return source;
 };
