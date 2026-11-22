@@ -9,3 +9,99 @@
   .plot-card { max-width: 158px; }
   #hud .brand { display: none; }
 }
+
+.orchard-touch {
+  --arrow-size: calc(36px + (min(14vw, 23vh, 100px) - 36px) * var(--orchard-move));
+  --stick-size: calc(88px + (min(45vw, 51vh, 252px) - 88px) * var(--orchard-move));
+  --action-size: calc(44px + (min(19vw, 24vh, 122px) - 44px) * var(--orchard-action));
+  --control-gap: clamp(4px, 0.9vmin, 9px);
+  inset: auto max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+.orchard-touch .sg-touch-movement {
+  grid-template-columns: repeat(3, var(--arrow-size));
+  gap: var(--control-gap);
+}
+.orchard-touch button {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: #18372ce8;
+  border-color: #f5edcd99;
+}
+.orchard-touch button:active { background: #507445; }
+.orchard-touch .sg-touch-movement button {
+  width: var(--arrow-size);
+  height: var(--arrow-size);
+  font-size: clamp(18px, calc(var(--arrow-size) * .43), 31px);
+}
+.orchard-touch .sg-touch-actions {
+  display: grid;
+  grid-template-columns: repeat(2, var(--action-size));
+  gap: var(--control-gap);
+  max-width: none;
+}
+.orchard-touch .sg-touch-actions button {
+  width: var(--action-size);
+  height: var(--action-size);
+  min-width: 0;
+  border-radius: 50%;
+  font-size: clamp(11px, calc(var(--action-size) * .22), 20px);
+}
+.orchard-touch .sg-touch-actions button:first-child {
+  grid-column: span 2;
+  justify-self: center;
+}
+.orchard-stick {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: var(--stick-size);
+  height: var(--stick-size);
+  flex: none;
+  border: 2px solid #f5edcd99;
+  border-radius: 50%;
+  background: #18372cb0;
+  pointer-events: auto;
+  touch-action: none;
+}
+.orchard-stick > div {
+  width: 36%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #f5edcd;
+  box-shadow: 0 2px 8px #15291c90;
+  pointer-events: none;
+}
+.orchard-ios {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.orchard-ios #interaction {
+  bottom: max(115px, 27vh);
+}
+#orchard-touch-settings {
+  min-width: 0;
+  margin: 26px 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid #28453240;
+}
+#orchard-touch-settings legend { padding-right: 8px; font-weight: 700; }
+.orchard-preview {
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: #375542;
+  color: #fff;
+}
+.orchard-preview > span { font-size: 12px; }
+.orchard-preview .orchard-touch {
+  position: static;
+  margin-top: 10px;
+}
+.orchard-preview .orchard-touch * { pointer-events: none; }
+.orchard-ios #settings { width: min(650px, calc(100vw - 20px)); }
+@media (max-width: 550px) {
+  .orchard-ios #settings { padding-inline: 14px; }
+  .orchard-preview { margin-inline: -9px; }
+}
