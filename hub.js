@@ -11,19 +11,113 @@ const playerFrame = document.querySelector('#player-frame');
 const exitGame = document.querySelector('#exit-game');
 const rotatePrompt = document.querySelector('#rotate-prompt');
 const portraitPhone = matchMedia('(orientation: portrait) and (pointer: coarse), (orientation: portrait) and (max-width: 600px)');
-const portraitGames = new Set(['fus', 'gp', 'pitchside']);
+const portraitGames = new Set(['fus', 'gp', 'pitchside', 'little-garden']);
 const play = document.querySelector('#play');
 const phoneBuild = '2026-11-21.2';
 const repairedGames = new Set(['motor-dynasty', 'redwood', 'second-chance', 'apex-circuit', 'blacktide']);
 const phoneLayout = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-height: 550px) and (max-width: 1100px)');
 const refreshHub = document.querySelector('#refresh-hub');
-refreshHub.addEventListener('click', () => {
-  refreshHub.disabled = true;
-  refreshHub.setAttribute('aria-label', 'Refreshing SG');
+const isAppleMobile = /iPhone|iPad/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function reloadHub(build) {
   const url = new URL(location.href);
   url.searchParams.set('sg-refresh', String(Date.now()));
+  if (build) url.searchParams.set('sg-update', build);
   location.replace(url.href);
-});
+}
+
+function bindHubRefresh() {
+  if (!isAppleMobile) {
+    refreshHub.addEventListener('click', () => {
+      refreshHub.disabled = true;
+      refreshHub.setAttribute('aria-label', 'Refreshing SG');
+      reloadHub();
+    });
+    return;
+  }
+
+  const build = document.querySelector('meta[name="sg-build"]').content;
+  const popup = document.querySelector('#hub-update');
+  const message = document.querySelector('#hub-update-message');
+  const announce = document.querySelector('#hub-update-status');
+  const retry = document.querySelector('#hub-update-retry');
+  const close = document.querySelector('#hub-update-close');
+  const icon = popup.querySelector('.hub-update-icon');
+  const validBuild = value => /^\d{10}$/.test(value || '');
+  const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+  let hideTimer;
+  document.body.classList.add('has-mobile-refresh');
+
+  function hidePopup() {
+    popup.hidden = true;
+    announce.textContent = '';
+  }
+
+  function showPopup(state, text) {
+    clearTimeout(hideTimer);
+    popup.dataset.state = state;
+    icon.textContent = state === 'success' ? '✓' : state === 'error' ? '!' : '';
+    message.textContent = text;
+    retry.hidden = state !== 'error';
+    close.hidden = state !== 'error';
+    popup.hidden = false;
+    announce.textContent = text;
+    if (state === 'success') hideTimer = setTimeout(hidePopup, 3000);
+  }
+
+  async function checkForUpdate() {
+    if (refreshHub.disabled) return;
+    refreshHub.disabled = true;
+    showPopup('busy', 'Checking for updates…');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let updating = false;
+    try {
+      const url = new URL('./index.html', location.href);
+      url.searchParams.set('sg-check', String(Date.now()));
+      const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error('Update check failed');
+      const latest = new DOMParser().parseFromString(await response.text(), 'text/html')
+        .querySelector('meta[name="sg-build"]')?.content;
+      if (!validBuild(latest) || latest < build) throw new Error('Update check returned an older build');
+
+      await delay(350);
+      if (latest === build) {
+        showPopup('success', 'You’re on the latest version!');
+        return;
+      }
+      updating = true;
+      showPopup('busy', 'Updating you to the newest version…');
+      await delay(700);
+      reloadHub(latest);
+    } catch (error) {
+      updating = false;
+      showPopup('error', 'Couldn’t check for updates. Check your connection and try again.');
+    } finally {
+      clearTimeout(timeout);
+      if (!updating) refreshHub.disabled = false;
+    }
+  }
+
+  close.addEventListener('click', () => {
+    hidePopup();
+    refreshHub.focus();
+  });
+  retry.addEventListener('click', checkForUpdate);
+  refreshHub.addEventListener('click', checkForUpdate);
+
+  const url = new URL(location.href);
+  const expected = url.searchParams.get('sg-update');
+  if (!validBuild(expected)) return;
+  url.searchParams.delete('sg-update');
+  history.replaceState(history.state, '', url.href);
+  if (build >= expected) {
+    showPopup('success', 'You’re on the newest version!');
+  } else {
+    showPopup('error', 'SG is still on the previous version. Try the update again.');
+  }
+}
 
 function sizePlayerToScreen() {
   const viewport = window.visualViewport;
@@ -90,8 +184,14 @@ function syncPlayerOrientation() {
 }
 portraitPhone.addEventListener('change', syncPlayerOrientation);
 
+function canPlay(game) {
+  if (!game?.play) return false;
+  if (game.id !== 'little-garden') return true;
+  return isAppleMobile;
+}
+
 function startGame(game) {
-  if (!game?.play || !player.hidden) return;
+  if (!canPlay(game) || !player.hidden) return;
   playingGame = game;
   syncPlayerOrientation();
   document.querySelector('#player-title').textContent = game.name;
@@ -215,8 +315,13 @@ function openGame(game) {
   document.querySelector('#game-genre').textContent = game.subtitle;
   document.querySelector('#game-description').textContent = game.description;
   document.querySelector('#game-devices').replaceChildren(devices(game));
-  play.hidden = !game.play;
-  document.querySelector('#availability').hidden = !!game.play;
+  const playable = canPlay(game);
+  play.hidden = !playable;
+  const availability = document.querySelector('#availability');
+  availability.hidden = playable;
+  availability.textContent = game.id === 'little-garden'
+    ? 'Playable on iPhone and iPad.'
+    : 'Playable in SG on Mac.';
   dialog.showModal();
 }
 
@@ -276,3 +381,4 @@ dialog.addEventListener('click', event => {
   if (event.target === dialog) dialog.close();
 });
 render();
+bindHubRefresh();

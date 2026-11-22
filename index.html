@@ -4,13 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060d1c">
+<!-- Advance the build number for every SG Hub release. -->
+<meta name="sg-build" content="2026112201">
 <title>SG · Game Hub</title>
 <link rel="icon" href="assets/sg-logo.png">
 <link rel="apple-touch-icon" href="assets/sg-180.png?v=2">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="hub.css?v=phone-4">
-<script defer src="catalog.js?v=pitchside-2"></script>
-<script defer src="hub.js?v=pitchside-1"></script>
+<link rel="stylesheet" href="hub.css?v=2026112201">
+<script defer src="catalog.js?v=2026112201"></script>
+<script defer src="hub.js?v=2026112201"></script>
 </head>
 <body>
 <header class="site-header">
@@ -29,6 +31,13 @@
   <div class="sr-only" id="order-status" aria-live="polite"></div>
   <p class="empty" id="empty" hidden>No games match your search.</p>
 </main>
+<div id="hub-update" class="hub-update" hidden>
+  <span class="hub-update-icon" aria-hidden="true"></span>
+  <p id="hub-update-message"></p>
+  <button type="button" id="hub-update-retry" hidden>Try again</button>
+  <button type="button" id="hub-update-close" aria-label="Dismiss update message" hidden>×</button>
+</div>
+<span id="hub-update-status" class="sr-only" role="status" aria-live="polite"></span>
 <dialog id="details" aria-labelledby="game-title">
   <div class="detail-cover">
     <img id="game-cover" alt="">

@@ -1,5 +1,15 @@
 const games = [
   {
+    "id": "little-garden",
+    "name": "Little Garden",
+    "subtitle": "3D · COZY GARDEN",
+    "description": "Plant seeds, water your flowers, and meet the friendly animals that visit your garden. Play at your own pace.",
+    "cover": "assets/little-garden.jpg",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "play": "games/little-garden/"
+  },
+  {
     "id": "ben10-open-world",
     "name": "Ben 10: Open World",
     "subtitle": "OPEN WORLD · V34",
