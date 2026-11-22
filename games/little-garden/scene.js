@@ -121,7 +121,7 @@
     const soilMaterial = new T.MeshStandardMaterial({ map: mulch, roughness: 1 });
     const rimColors = [0xd98b59, 0xc87a4f, 0xd99a61, 0xc98554, 0xbe7351];
     const plots = [];
-    for (const z of [-1.75, .4, 2.55]) {
+    for (const z of [-1.98, -.04, 1.9, 3.84]) {
       for (const x of [-1.55, 1.55]) {
         shade(x + .14, z + .12, 3.25, 2.5);
         model(planter, 0xb57149, x, .055, z, 1, 1, 1, -Math.PI / 2);
@@ -148,7 +148,7 @@
     }
 
     // A narrow path leaves each planter open from the front and along the center.
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 22; i++) {
       const x = (i % 2 - .5) * .25 + range(-.045, .045);
       const z = -4.125 + i * .444;
       model(pebble, [0xdcc698, 0xe3cca1, 0xd5ba93][i % 3], x, -.017, z, range(.265, .345), .049, range(.19, .26), 0, range(-.4, .4));
@@ -330,8 +330,8 @@
     }
 
     // A little yellow watering can rests by the path.
-    const canX = -1.8;
-    const canZ = 4;
+    const canX = -2.69;
+    const canZ = 5.13;
     shade(canX + .04, canZ, .85, .67);
     model(tube, 0xf7ba48, canX, .19, canZ, .235, .346, .206);
     model(round, 0xf7ca57, canX, .093, canZ, .239, .089, .211);
@@ -349,8 +349,8 @@
     model(petal, 0xfeab5d, canX, .199, canZ+.219,.029,.029,.016);
 
     // A terracotta table and a glazed blue vase for flowers picked by the player.
-    const vaseX = 2.97;
-    const vaseZ = 3.88;
+    const vaseX = 3.38;
+    const vaseZ = 4.13;
     const vase = new T.Vector3(vaseX, .85, vaseZ);
     shade(vaseX, vaseZ, 1.47, 1.12);
     for (const x of [-.27,.25]) {
@@ -375,6 +375,7 @@
       scene.add(group);
     }
 
+    shade(-3.17, 1.52, 1.42, 1.02);
     const clouds = [];
     const cloudMaterial = new T.MeshStandardMaterial({ color: 0xfffbef, roughness: 1 });
     for (const [x,y,z] of [[-8,5.6,-14],[3.1,6,-16],[11,4.8,-13]]) {
@@ -394,14 +395,14 @@
       width = Math.max(1, width || canvas.clientWidth);
       height = Math.max(1, height || canvas.clientHeight);
       const aspect = width / height;
-      const vertical = Math.max(7.8, 7.65 / aspect);
+      const vertical = Math.max(7.8, 8.35 / aspect);
       const horizontal = vertical * aspect;
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
       camera.top = vertical / 2;
       camera.bottom = -vertical / 2;
-      camera.position.set(.66, 8.65, 12.8);
-      camera.lookAt(0, .56, -.61);
+      camera.position.set(.54, height < 360 ? 11.8 : 9.5, 12.8);
+      camera.lookAt(0, .56, -.22);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
       renderer.setSize(width, height, false);
@@ -414,7 +415,10 @@
     resize(canvas.clientWidth, canvas.clientHeight);
     return {
       renderer, scene, camera, plots, vase, update, resize,
-      rabbitSpot: new T.Vector3(-3.35, 0, 2.9),
+      avatarSpot: new T.Vector3(-3.17, 0, 1.52),
+      rabbitSpot: new T.Vector3(-3.37, 0, 3.18),
+      squirrelSpot: new T.Vector3(3.45, 0, 2.6),
+      ladybugSpot: new T.Vector3(-2.36, .32, 4.3),
       birdSpot: new T.Vector3(3.36, 1.17, -3.05),
     };
   }

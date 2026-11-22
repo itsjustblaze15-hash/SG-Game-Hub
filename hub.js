@@ -176,6 +176,7 @@ function syncPlayerOrientation() {
   const game = playingGame;
   const source = new URL(game.play, location.href);
   if (repairedGames.has(game.id)) source.searchParams.set('sg-version', phoneBuild);
+  if (game.id === 'little-garden') source.searchParams.set('sg-version', document.querySelector('meta[name="sg-build"]').content);
   const refreshed = new URL(location.href).searchParams.get('sg-refresh');
   if (refreshed) source.searchParams.set('sg-refresh', refreshed);
   frame.src = source.href;

@@ -67,6 +67,7 @@
       if (!part.isMesh) return;
       const position = part.geometry.getAttribute('position');
       const normalAttribute = part.geometry.getAttribute('normal');
+      const palette = part.geometry.getAttribute('color');
       const indices = part.geometry.getIndex();
       normalMatrix.getNormalMatrix(part.matrixWorld);
       color.set(part.userData.color);
@@ -76,7 +77,8 @@
         normal.fromBufferAttribute(normalAttribute, index).applyMatrix3(normalMatrix).normalize();
         positions.push(point.x, point.y, point.z);
         normals.push(normal.x, normal.y, normal.z);
-        colors.push(color.r, color.g, color.b);
+        if (palette) colors.push(palette.getX(index), palette.getY(index), palette.getZ(index));
+        else colors.push(color.r, color.g, color.b);
       }
       const indexCount = indices ? indices.count : position.count;
       for (let index = 0; index < indexCount; index++) {
@@ -121,8 +123,31 @@
     lavender: {
       height: 1.13, radius: 0.32, petal: 0xcf9bf0, petalShade: 0x9850ca,
       core: 0x7648b2, speckle: 0xebb9fb, petals: 8
+    },
+    tulip: {
+      height: 1.03, petal: 0xff9b38, petalShade: 0xffbd4e,
+      core: 0xee6e32, speckle: 0xffd47a
+    },
+    poppy: {
+      height: 1.01, radius: 0.39, petal: 0xf05d5c, petalShade: 0xf77e71,
+      core: 0x574047, speckle: 0xeabc79, petals: 6
     }
   };
+
+  function addTulip(group, palette) {
+    round(group, 0x61984a, [0, 0, 0], [0.13, 0.08, 0.13]);
+    round(group, palette.core, [0, 0.151, 0], [0.118, 0.14, 0.118]);
+    for (let index = 0; index < 6; index++) {
+      const petalBase = new T.Group();
+      petalBase.rotation.y = index * TAU / 6;
+      group.add(petalBase);
+      const outer = index % 2 === 0;
+      mesh(petalBase, petal, outer ? palette.petal : palette.petalShade,
+        [0, outer ? 0.148 : 0.194, outer ? 0.119 : 0.097],
+        [0.116, 0.202, 0.045], [0.45, 0, (index % 3 - 1) * 0.065]);
+    }
+    round(group, palette.speckle, [0, 0.207, 0], [0.067, 0.05, 0.06]);
+  }
 
   function makeFlower(kind, stage, variant) {
     const parts = new T.Group();
@@ -173,8 +198,16 @@
     head.rotation.set(-0.88, lean * 2.7, variant * 0.24);
     parts.add(head);
 
+    if (kind === 'tulip') {
+      head.rotation.x = 0.13;
+      head.rotation.z = lean * 1.8;
+      addTulip(head, palette);
+      return bake(parts);
+    }
+
     const size = palette.radius;
-    const ringRadius = size * 0.59;
+    const isPoppy = kind === 'poppy';
+    const ringRadius = size * (isPoppy ? 0.48 : 0.59);
     const isSunflower = kind === 'sunflower';
     const centerSize = size * (isSunflower ? 0.47 : 0.33);
 
@@ -188,11 +221,11 @@
     }
     for (let index = 0; index < palette.petals; index++) {
       const angle = index * TAU / palette.petals;
-      const length = size * (0.47 + 0.03 * Math.cos(index * 2.7));
-      const width = size * (kind === 'cosmos' ? 0.35 : 0.21);
+      const length = size * ((isPoppy ? 0.63 : 0.47) + 0.03 * Math.cos(index * 2.7));
+      const width = size * (isPoppy ? 0.55 : kind === 'cosmos' ? 0.35 : 0.21);
       const color = index % 3 === 2 && !isSunflower ? palette.petalShade : palette.petal;
       mesh(head, petal, color, [-Math.sin(angle) * ringRadius, Math.cos(angle) * ringRadius, 0.008],
-        [width, length, size * 0.105], [0.16, 0, angle]);
+        [width, length, size * 0.105], [isPoppy ? 0.29 : 0.16, 0, angle]);
     }
     round(head, palette.core, [0, 0, 0.038], [centerSize, centerSize, size * 0.195]);
     const pollenCount = isSunflower ? 26 : 15;
@@ -341,5 +374,129 @@
     return root;
   }
 
-  window.GardenModels = { flower, bunny, butterfly, bird };
+  function squirrelTail() {
+    const geometry = new T.SphereGeometry(1, 20, 18);
+    const points = geometry.getAttribute('position');
+    const shades = [];
+    const deep = new T.Color(0x9e582e);
+    const gold = new T.Color(0xe5a66b);
+    const shade = new T.Color();
+    for (let index = 0; index < points.count; index++) {
+      const x = points.getX(index);
+      const z = points.getZ(index);
+      const t = (points.getY(index) + 1) / 2;
+      const body = 0.3 + 0.7 * t;
+      points.setXYZ(index, 0.35 * Math.sin(t * 2.32) + x * 0.23 * body, -0.075 + t * 0.79,
+        -0.17 * Math.sin(t * 2.16) + z * 0.18 * body);
+      const stripe = Math.max(0, Math.sin(Math.atan2(x, z) * 6 + t * 4)) * 0.065;
+      shade.copy(deep).lerp(gold, Math.min(1, 0.2 + t * 0.64 + z * 0.12 + stripe));
+      shades.push(shade.r, shade.g, shade.b);
+    }
+    geometry.setAttribute('color', new T.Float32BufferAttribute(shades, 3));
+    geometry.computeVertexNormals();
+    geometry.userData.generated = true;
+    const parts = new T.Group();
+    mesh(parts, geometry, 0xffffff, [0, 0, 0], [1, 1, 1]);
+    return bake(parts);
+  }
+
+  function squirrel() {
+    const root = new T.Group();
+    const pose = new T.Group();
+    const tail = new T.Group();
+    const parts = new T.Group();
+    const fur = 0xb9773f;
+    const lightFur = 0xd89655;
+    const darkFur = 0x9e582e;
+    root.add(pose);
+    pose.add(tail);
+    tail.position.set(0.065, 0.155, -0.154);
+    tail.add(squirrelTail());
+
+    round(parts, fur, [0, 0.23, -0.031], [0.187, 0.235, 0.184], [-0.15, 0, 0]);
+    round(parts, cream, [0, 0.227, 0.111], [0.133, 0.167, 0.097], [-0.18, 0, 0]);
+    round(parts, lightFur, [0, 0.467, 0.073], [0.2, 0.17, 0.172]);
+    round(parts, fur, [0, 0.594, 0.07], [0.089, 0.061, 0.109], [0.43, 0, -0.37]);
+    for (const side of [-1, 1]) {
+      round(parts, fur, [side * 0.125, 0.615, 0.045], [0.067, 0.109, 0.046], [0, -side * 0.2, -side * 0.31]);
+      round(parts, 0xf1a47c, [side * 0.131, 0.639, 0.081], [0.041, 0.07, 0.018], [0, -side * 0.2, -side * 0.31]);
+      round(parts, darkFur, [side * 0.148, 0.078, 0.023], [0.101, 0.073, 0.118], [0, side * 0.15, 0]);
+      round(parts, lightFur, [side * 0.111, 0.268, 0.165], [0.065, 0.104, 0.064], [0.53, 0, side * -0.38]);
+      round(parts, cream, [side * 0.065, 0.405, 0.211], [0.09, 0.066, 0.056]);
+      round(parts, 0xf19e82, [side * 0.132, 0.419, 0.204], [0.031, 0.018, 0.012], [0, side * 0.48, 0]);
+      round(parts, cream, [side * 0.086, 0.486, 0.202], [0.056, 0.055, 0.021], [0, side * 0.3, 0]);
+      round(parts, cocoa, [side * 0.081, 0.488, 0.22], [0.028, 0.036, 0.016], [0, side * 0.3, 0]);
+      round(parts, white, [side * 0.081 - 0.006, 0.499, 0.235], [0.011, 0.011, 0.004]);
+    }
+    round(parts, cocoa, [0, 0.43, 0.269], [0.03, 0.021, 0.016]);
+    strand(parts, cocoa, [[-0.037, 0.396, 0.256], [-0.019, 0.387, 0.266],
+      [0, 0.403, 0.272], [0.019, 0.387, 0.266], [0.037, 0.396, 0.256]], 0.004, 8);
+
+    // An acorn rests between the two front paws.
+    round(parts, 0xa8552e, [0.016, 0.231, 0.23], [0.062, 0.087, 0.056], [0.34, 0, -0.26]);
+    round(parts, 0x784933, [0.022, 0.273, 0.248], [0.075, 0.046, 0.061], [0.34, 0, -0.26]);
+    strand(parts, 0x6a4d31, [[0.033, 0.303, 0.249], [0.045, 0.331, 0.256], [0.062, 0.341, 0.258]], 0.009, 5);
+    for (let index = 0; index < 7; index++) {
+      const angle = index * TAU / 7;
+      round(parts, 0x9b6a48, [0.022 + Math.cos(angle) * 0.054, 0.288, 0.248 + Math.sin(angle) * 0.041],
+        [0.014, 0.01, 0.014]);
+    }
+    pose.add(bake(parts));
+    root.userData.animate = (time, phase = 0) => {
+      const sway = time * 1.85 + phase;
+      tail.rotation.y = Math.sin(sway) * 0.21;
+      tail.rotation.z = Math.sin(sway + 0.72) * 0.11;
+      pose.rotation.x = Math.sin(sway * 0.77) * 0.032;
+      pose.position.y = Math.max(0, Math.sin(sway * 0.77)) * 0.015;
+    };
+    return root;
+  }
+
+  function ladybug() {
+    const root = new T.Group();
+    const pose = new T.Group();
+    const shell = new T.Group();
+    const parts = new T.Group();
+    root.add(pose);
+    pose.add(shell);
+    const shellRed = 0xe14542;
+    const dotColor = 0x423638;
+    round(parts, dotColor, [0, 0.096, -0.025], [0.134, 0.078, 0.149]);
+    round(parts, dotColor, [0, 0.112, 0.122], [0.085, 0.067, 0.081]);
+    for (const side of [-1, 1]) {
+      for (const step of [-1, 0, 1]) {
+        const z = step * 0.087;
+        strand(parts, dotColor, [[side * 0.078, 0.069, z], [side * 0.126, 0.054, z + 0.013],
+          [side * 0.157, 0.013, z + step * 0.026]], 0.009, 5);
+      }
+      round(parts, white, [side * 0.034, 0.129, 0.181], [0.019, 0.022, 0.017]);
+      round(parts, cocoa, [side * 0.031, 0.129, 0.195], [0.009, 0.012, 0.008]);
+      strand(parts, dotColor, [[side * 0.032, 0.149, 0.16], [side * 0.054, 0.194, 0.19],
+        [side * 0.073, 0.219, 0.205]], 0.006, 5);
+      round(parts, dotColor, [side * 0.073, 0.219, 0.205], [0.013, 0.013, 0.013]);
+    }
+    strand(parts, 0xf6a99a, [[-0.021, 0.103, 0.197], [0, 0.097, 0.2], [0.021, 0.103, 0.197]], 0.004, 5);
+    pose.add(bake(parts));
+
+    const paintedShell = new T.Group();
+    round(paintedShell, shellRed, [0, 0.118, -0.04], [0.137, 0.11, 0.15]);
+    strand(paintedShell, 0x973938, [[0, 0.175, -0.163], [0, 0.228, -0.04], [0, 0.179, 0.084]], 0.008, 10);
+    for (const side of [-1, 1]) {
+      for (const [x, z, radius] of [[0.053, 0.062, 0.024], [0.095, -0.024, 0.026], [0.048, -0.112, 0.022]]) {
+        const shellY = 0.118 + 0.11 * Math.sqrt(1 - (x / 0.137) ** 2 - ((z + 0.04) / 0.15) ** 2);
+        round(paintedShell, dotColor, [side * x, shellY, z], [radius, 0.009, radius], [(z + 0.04) * 5.8, 0, -side * x * 5.5]);
+      }
+    }
+    round(paintedShell, 0xf76f67, [-0.039, 0.222, -0.022], [0.022, 0.007, 0.018], [0.09, 0, 0.24]);
+    shell.add(bake(paintedShell));
+    root.userData.animate = (time, phase = 0) => {
+      const step = time * 8 + phase;
+      pose.rotation.z = Math.sin(step) * 0.085;
+      pose.position.y = Math.abs(Math.sin(step)) * 0.012;
+      shell.rotation.x = Math.sin(step) * 0.032;
+    };
+    return root;
+  }
+
+  window.GardenModels = { flower, bunny, butterfly, bird, squirrel, ladybug };
 })();

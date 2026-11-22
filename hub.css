@@ -67,8 +67,8 @@ dialog::backdrop { background: #010510cc; }
 body:has(dialog[open]) { overflow: hidden; }
 .detail-cover { position: relative; }
 .detail-cover img { display: block; width: 100%; aspect-ratio: 1.85; object-fit: cover; }
-.game-tile[data-game="little-garden"] .game-card > img,
-#game-cover[src="assets/little-garden.jpg"] { object-fit: contain; background: #111e34; }
+.game-tile[data-game="little-garden"] .game-card > img { object-position: 5% center; }
+#game-cover[src="assets/little-garden.jpg"] { aspect-ratio: 8 / 3; }
 .close {
   position: absolute; right: 10px; top: 10px; width: 44px; height: 44px;
   border: 1px solid #7990ad; border-radius: 50%; background: #081325; color: #fff; font-size: 1.5rem; cursor: pointer;

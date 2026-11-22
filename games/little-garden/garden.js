@@ -9,9 +9,32 @@
     { id: 'daisy', name: 'Daisy', icon: '🌼' },
     { id: 'sunflower', name: 'Sunflower', icon: '🌻' },
     { id: 'cosmos', name: 'Cosmos', icon: '🌸' },
-    { id: 'lavender', name: 'Lavender', icon: '🪻' }
+    { id: 'lavender', name: 'Lavender', icon: '🪻' },
+    { id: 'tulip', name: 'Tulip', icon: '🌷' },
+    { id: 'poppy', name: 'Poppy', icon: '🏵️' }
   ];
   const species = new Map(flowers.map(flower => [flower.id, flower]));
+  const wardrobe = [
+    {key: 'style', title: 'Hairstyle', choices: [
+      ['curls', 'Curls', '〰'], ['bob', 'Bob', '✿'], ['pigtails', 'Pigtails', '🎀']
+    ]},
+    {key: 'hair', title: 'Hair color', choices: [
+      ['brown', 'Brown', '🟤'], ['gold', 'Gold', '🟡'], ['black', 'Black', '⚫'], ['auburn', 'Auburn', '🟠']
+    ]},
+    {key: 'outfit', title: 'Overalls', choices: [
+      ['pink', 'Pink', '🩷'], ['mint', 'Mint', '💚'], ['lilac', 'Lilac', '💜']
+    ]},
+    {key: 'hat', title: 'Hat', choices: [
+      ['straw', 'Straw', '👒'], ['flower', 'Flower', '🌸'], ['none', 'None', '✦']
+    ]}
+  ];
+  const visitorTypes = [
+    {id: 'butterfly', name: 'Butterfly', icon: '🦋', blooms: 1},
+    {id: 'rabbit', name: 'Bunny', icon: '🐰', blooms: 3},
+    {id: 'bird', name: 'Bluebird', icon: '🐦', blooms: 6},
+    {id: 'squirrel', name: 'Squirrel', icon: '🐿️', blooms: 9},
+    {id: 'ladybug', name: 'Ladybug', icon: '🐞', blooms: 12}
+  ];
   const storageKey = 'sg-little-garden-v1';
   const tips = {
     plant: 'Tap an empty garden bed.',
@@ -27,9 +50,9 @@
   const vaseModels = [];
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let world;
-  let butterfly;
-  let rabbit;
-  let bird;
+  const visitors = new Map();
+  let avatar;
+  let preview;
   let frame;
   let tool = 'plant';
   let seed = flowers[0].id;
@@ -44,14 +67,19 @@
     const counts = Object.fromEntries(flowers.map(({id}) => [id,
       Number.isSafeInteger(saved?.counts?.[id]) && saved.counts[id] >= 0 ? saved.counts[id] : 0
     ]));
-    const plots = Array.from({length: 6}, (_, index) => {
+    const plots = Array.from({length: 8}, (_, index) => {
       const plot = saved?.plots?.[index];
       return species.has(plot?.kind) && [0, 1, 2].includes(plot.stage) ? {kind: plot.kind, stage: plot.stage} : null;
     });
     const collected = Object.values(counts).reduce((sum, count) => sum + count, 0);
     const blooms = Number.isSafeInteger(saved?.blooms) ? Math.max(collected, saved.blooms) : collected;
     const vase = (Array.isArray(saved?.vase) ? saved.vase : []).filter(id => counts[id] > 0);
-    return {plots, counts, blooms, vase: [...new Set(vase)], sound: saved?.sound === true};
+    const outfit = Object.fromEntries(wardrobe.map(({key, choices}) => {
+      const value = saved?.outfit?.[key];
+      return [key, choices.some(([id]) => id === value) ? value : choices[0][0]];
+    }));
+    const solved = Number.isSafeInteger(saved?.solved) ? Math.max(0, saved.solved) : 0;
+    return {plots, counts, blooms, vase: [...new Set(vase)], sound: saved?.sound === true, outfit, solved};
   }
 
   function save() {
@@ -166,30 +194,109 @@
       model.position.copy(world.vase);
       model.position.x += (index % 2 ? .08 : -.08);
       model.position.z += index >= 2 ? -.05 : .05;
-      model.rotation.z = [.27, -.3, .45, -.45][index];
+      model.rotation.z = [.27, -.3, .45, -.45, .59, -.59][index];
       model.rotation.y = index * .7;
       world.scene.add(model);
       vaseModels.push(model);
     });
   }
 
-  function visitors() {
+  function updateVisitors() {
     if (!world) return;
-    if (!butterfly && state.blooms >= 1) {
-      butterfly = GardenModels.butterfly('pink');
-      world.scene.add(butterfly);
+    const models = {
+      butterfly: () => GardenModels.butterfly('pink'),
+      rabbit: GardenModels.bunny,
+      bird: GardenModels.bird,
+      squirrel: GardenModels.squirrel,
+      ladybug: GardenModels.ladybug
+    };
+    for (const {id, blooms} of visitorTypes) {
+      if (visitors.has(id) || state.blooms < blooms) continue;
+      const visitor = models[id]();
+      const spot = world[id + 'Spot'];
+      if (spot) visitor.position.copy(spot);
+      visitor.rotation.y = {rabbit: .55, bird: -.65, squirrel: -.45, ladybug: .38}[id] || 0;
+      visitors.set(id, visitor);
+      world.scene.add(visitor);
     }
-    if (!rabbit && state.blooms >= 3) {
-      rabbit = GardenModels.bunny();
-      rabbit.position.copy(world.rabbitSpot);
-      rabbit.rotation.y = .55;
-      world.scene.add(rabbit);
+  }
+
+  function updateAvatar() {
+    if (world) {
+      if (avatar) {
+        world.scene.remove(avatar);
+        avatar.userData.dispose?.();
+      }
+      avatar = createGardenAvatar(state.outfit);
+      avatar.position.copy(world.avatarSpot);
+      avatar.rotation.y = .28;
+      avatar.scale.setScalar(1.1);
+      world.scene.add(avatar);
     }
-    if (!bird && state.blooms >= 6) {
-      bird = GardenModels.bird();
-      bird.position.copy(world.birdSpot);
-      bird.rotation.y = -.65;
-      world.scene.add(bird);
+    if ($('wardrobe-dialog').open) renderAvatarPreview();
+  }
+
+  function renderAvatarPreview() {
+    const view = $('avatar-preview');
+    const { width, height } = view.getBoundingClientRect();
+    if (!width || !height) return;
+    if (!preview) {
+      try {
+        const renderer = new THREE.WebGLRenderer({canvas: view, alpha: true, antialias: true});
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        const scene = new THREE.Scene();
+        scene.add(new THREE.HemisphereLight(0xfff2dc, 0x93a175, 2.15));
+        const light = new THREE.DirectionalLight(0xffedd8, 2.1);
+        light.position.set(-2, 5, 4);
+        scene.add(light);
+        const camera = new THREE.PerspectiveCamera(35, width / height, .1, 20);
+        camera.position.set(.46, 1.05, 3.1);
+        camera.lookAt(0, .79, 0);
+        preview = {scene, renderer, camera, model: null};
+      } catch {
+        view.hidden = true;
+        $('avatar-fallback').hidden = false;
+        return;
+      }
+    }
+    if (preview.model) {
+      preview.scene.remove(preview.model);
+      preview.model.userData.dispose?.();
+    }
+    preview.model = createGardenAvatar(state.outfit);
+    preview.scene.add(preview.model);
+    preview.camera.aspect = width / height;
+    preview.camera.updateProjectionMatrix();
+    preview.renderer.setSize(width, height, false);
+    preview.renderer.render(preview.scene, preview.camera);
+  }
+
+  function renderWardrobe() {
+    const options = $('wardrobe-options');
+    for (const {key, title, choices} of wardrobe) {
+      const field = document.createElement('fieldset');
+      const legend = document.createElement('legend');
+      legend.textContent = title;
+      const row = document.createElement('div');
+      row.className = 'wardrobe-choices';
+      for (const [id, name, icon] of choices) {
+        const choice = document.createElement('button');
+        choice.type = 'button';
+        choice.innerHTML = '<span aria-hidden="true">' + icon + '</span>' + name;
+        choice.setAttribute('aria-label', title + ': ' + name);
+        choice.setAttribute('aria-pressed', String(state.outfit[key] === id));
+        choice.onclick = () => {
+          state.outfit[key] = id;
+          for (const button of row.children) button.setAttribute('aria-pressed', String(button === choice));
+          updateAvatar();
+          save();
+          cue([523, 659]);
+        };
+        row.append(choice);
+      }
+      field.append(legend, row);
+      options.append(field);
     }
   }
 
@@ -205,11 +312,11 @@
       plot.stage++;
       if (plot.stage === 2) {
         state.blooms++;
-        const messages = {1: 'A butterfly came to visit!', 3: 'A bunny came to visit!', 6: 'A little bird came to visit!'};
-        showMessage(messages[state.blooms] || species.get(plot.kind).name + ' in bloom!');
+        const visitor = visitorTypes.find(({blooms}) => blooms === state.blooms);
+        showMessage(visitor ? 'A ' + visitor.name.toLowerCase() + ' came to visit!' : species.get(plot.kind).name + ' in bloom!');
         sparkle(index, '✨');
         cue([523, 659, 784]);
-        visitors();
+        updateVisitors();
       } else {
         showMessage('A little sprout! Water it once more.');
         sparkle(index, '💧');
@@ -236,6 +343,16 @@
   }
 
   function renderCollection() {
+    $('puzzle-count').textContent = state.solved;
+    $('visitor-list').replaceChildren(...visitorTypes.map(({name, icon, blooms}) => {
+      const item = document.createElement('li');
+      const label = document.createElement('strong');
+      label.textContent = icon + ' ' + name;
+      const status = document.createElement('span');
+      status.textContent = state.blooms >= blooms ? 'Visited ✓' : blooms + (blooms === 1 ? ' bloom' : ' blooms');
+      item.append(label, status);
+      return item;
+    }));
     $('flowers').replaceChildren(...flowers.map(({id, name, icon}) => {
       const button = document.createElement('button');
       button.type = 'button';
@@ -260,13 +377,13 @@
   function render(time) {
     const seconds = reducedMotion.matches ? 0 : time / 1000;
     world.update(seconds);
+    const butterfly = visitors.get('butterfly');
     if (butterfly) {
       butterfly.position.set(Math.sin(seconds * .75) * 2.8, 1.6 + Math.sin(seconds * 2.4) * .23, Math.cos(seconds * .75) * 2.45);
       butterfly.rotation.y = seconds * .75 + Math.PI / 2;
-      butterfly.userData.animate?.(seconds);
     }
-    rabbit?.userData.animate?.(seconds);
-    bird?.userData.animate?.(seconds);
+    for (const visitor of visitors.values()) visitor.userData.animate?.(seconds);
+    avatar?.userData.animate?.(seconds);
     world.renderer.render(world.scene, world.camera);
     frame = requestAnimationFrame(render);
   }
@@ -346,6 +463,23 @@
   }
   $('sound').onclick = () => { state.sound = !state.sound; soundLabel(); save(); cue([523, 659]); };
   $('collection').onclick = () => { renderCollection(); $('vase-dialog').showModal(); cue([587]); };
+  renderWardrobe();
+  $('dress-up').onclick = () => {
+    $('wardrobe-dialog').showModal();
+    renderAvatarPreview();
+    cue([587]);
+  };
+  new ResizeObserver(() => {
+    if ($('wardrobe-dialog').open) renderAvatarPreview();
+  }).observe($('avatar-preview'));
+  const puzzles = installGardenPuzzles($('puzzles-dialog'), {
+    onSolve: () => {
+      state.solved++;
+      save();
+      cue([523, 659, 784]);
+    }
+  });
+  $('puzzles').onclick = () => { puzzles.open(); cue([587]); };
   $('start').onclick = () => {
     $('welcome').hidden = true;
     $('game').hidden = false;
@@ -361,7 +495,8 @@
       frame = requestAnimationFrame(render);
     }
     bedButtons.forEach((_, index) => updatePlot(index));
-    visitors();
+    updateVisitors();
+    updateAvatar();
     updateVase();
     selectTool('plant');
     cue([392, 523, 659]);
