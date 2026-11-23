@@ -6,25 +6,28 @@
   <meta name="theme-color" content="#f8f0db">
   <meta name="description" content="Plant, water, and pick flowers in a peaceful garden full of little visitors.">
   <title>Little Garden</title>
-  <link rel="stylesheet" href="garden.css?v=4">
-  <link rel="stylesheet" href="puzzles.css?v=4">
-  <link rel="stylesheet" href="wardrobe.css?v=4">
-  <link rel="stylesheet" href="previews.css?v=4">
+  <link rel="stylesheet" href="garden.css?v=5">
+  <link rel="stylesheet" href="puzzles.css?v=5">
+  <link rel="stylesheet" href="wardrobe.css?v=5">
+  <link rel="stylesheet" href="previews.css?v=5">
+  <link rel="stylesheet" href="unlocks.css?v=5">
   <script>
     window.gardenPhone = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   </script>
   <script defer src="../redwood/vendor/three.min.js"></script>
-  <script defer src="scene.js?v=4"></script>
-  <script defer src="models.js?v=4"></script>
-  <script defer src="avatar.js?v=4"></script>
-  <script defer src="puzzles.js?v=4"></script>
-  <script defer src="economy.js?v=4"></script>
-  <script defer src="collection-models.js?v=4"></script>
-  <script defer src="wardrobe.js?v=4"></script>
-  <script defer src="previews.js?v=4"></script>
-  <script defer src="activities.js?v=4"></script>
-  <script defer src="garden.js?v=4"></script>
+  <script defer src="scene.js?v=5"></script>
+  <script defer src="models.js?v=5"></script>
+  <script defer src="avatar.js?v=5"></script>
+  <script defer src="puzzles.js?v=5"></script>
+  <script defer src="economy.js?v=5"></script>
+  <script defer src="collection-models.js?v=5"></script>
+  <script defer src="wardrobe.js?v=5"></script>
+  <script defer src="previews.js?v=5"></script>
+  <script defer src="activities.js?v=5"></script>
+  <script defer src="unlocks.js?v=5"></script>
+  <script defer src="residents.js?v=5"></script>
+  <script defer src="garden.js?v=5"></script>
 </head>
 <body>
   <section id="screen-rotate" class="screen-rotate" hidden>
@@ -67,7 +70,6 @@
       <canvas id="world" aria-hidden="true"></canvas>
       <div id="beds" class="beds"></div>
       <div id="effect" class="effect" aria-hidden="true"></div>
-      <div id="areas" class="areas" aria-label="Garden areas"></div>
       <p class="status"><span id="guide" role="status"></span></p>
     </section>
     <section class="controls" aria-label="Garden tools">
@@ -80,8 +82,10 @@
         <button type="button" id="close-seed-preview" aria-label="Close flower preview">×</button>
         <div id="seed-preview-host"></div>
       </section>
+      <p class="seed-stock-note">Seeds you own · Buy more in the shop</p>
       <div class="seeds" id="seeds" role="group" aria-label="Choose a flower"></div>
       <p class="tool-tip" id="tool-tip" hidden></p>
+      <div id="areas" class="areas" aria-label="Garden areas"></div>
     </section>
   </main>
   <dialog id="vase-dialog" aria-labelledby="vase-title">
@@ -102,6 +106,7 @@
     <div id="shop-tabs" class="activity-tabs" role="group" aria-label="Shop category">
       <button data-tab="seeds" aria-pressed="true">🌱 Seeds</button><button data-tab="sell" aria-pressed="false">💐 Sell flowers</button><button data-tab="decor" aria-pressed="false">🏡 Decor & areas</button>
     </div>
+    <p id="shop-help" class="shop-help">Each seed is used once. The shop never runs out.</p>
     <p id="shop-status" role="status" class="activity-status"></p>
     <div class="preview-layout"><div id="shop-content" class="activity-grid preview-list"></div><aside id="shop-preview-host" class="preview-side"></aside></div>
   </dialog>
@@ -112,7 +117,7 @@
   </dialog>
   <dialog id="animals-dialog" class="activity-dialog preview-dialog" aria-labelledby="animals-title">
     <div class="vase-header"><h2 id="animals-title">Animal friends <small id="animal-count"></small></h2><form method="dialog"><button aria-label="Close animals">×</button></form></div>
-    <p class="album-guide">Each blooming seed has an 18% chance to bring a new friend. A new friend is guaranteed by the fifth try for that seed while it has friends left to discover.</p>
+    <p class="album-guide">Each bloom can bring a friend. Rarer seeds have better odds for rare friends. Repeats are possible. Every new friend keeps its own home.</p>
     <div id="animal-filters" class="activity-tabs" role="group" aria-label="Animal collection filter">
       <button data-filter="all" aria-pressed="true">All friends</button><button data-filter="owned" aria-pressed="false">Discovered</button><button data-filter="missing" aria-pressed="false">To find</button>
     </div>

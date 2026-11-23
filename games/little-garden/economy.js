@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const flowers = [
+  const baseFlowers = [
     {id: 'daisy', name: 'Daisy', icon: '🌼', seedPrice: 2, sellPrice: 5, base: 'daisy', color: 0xfff2d2},
     {id: 'sunflower', name: 'Sunflower', icon: '🌻', seedPrice: 3, sellPrice: 7, base: 'sunflower', color: 0xffc739},
     {id: 'cosmos', name: 'Cosmos', icon: '🌸', seedPrice: 3, sellPrice: 7, base: 'cosmos', color: 0xed88b9},
@@ -27,6 +27,29 @@
     {id: 'white-poppy', name: 'Cloud poppy', icon: '🏵️', seedPrice: 5, sellPrice: 11, base: 'poppy', color: 0xfff1da},
     {id: 'pink-poppy', name: 'Candy poppy', icon: '🏵️', seedPrice: 5, sellPrice: 12, base: 'poppy', color: 0xef8cb8}
   ];
+  const seedTiers = {
+    common: {encounterChance: .28, weights: {common: .80, rare: .17, special: .03}},
+    uncommon: {encounterChance: .32, weights: {common: .60, rare: .32, special: .08}},
+    rare: {encounterChance: .38, weights: {common: .43, rare: .42, special: .15}},
+    special: {encounterChance: .45, weights: {common: .25, rare: .45, special: .30}}
+  };
+  const seedRarities = {
+    'pink-daisy': ['uncommon', 8, 13], 'blue-daisy': ['rare', 10, 16],
+    'peach-daisy': ['uncommon', 8, 13], 'amber-sunflower': ['uncommon', 8, 14],
+    'cream-sunflower': ['rare', 10, 17], 'rose-sunflower': ['rare', 11, 18],
+    'white-cosmos': ['rare', 10, 17], 'coral-cosmos': ['uncommon', 9, 15],
+    'purple-cosmos': ['special', 18, 28], 'pink-lavender': ['rare', 11, 18],
+    'blue-lavender': ['rare', 12, 20], 'white-lavender': ['special', 20, 30],
+    'pink-tulip': ['rare', 10, 17], 'lemon-tulip': ['uncommon', 10, 16],
+    'purple-tulip': ['special', 24, 36], 'peach-poppy': ['uncommon', 10, 16],
+    'white-poppy': ['rare', 12, 20], 'pink-poppy': ['special', 22, 33]
+  };
+  const flowers = baseFlowers.map(flower => {
+    const [rarity, seedPrice, sellPrice] = seedRarities[flower.id]
+      || ['common', flower.seedPrice, flower.sellPrice];
+    return {...flower, rarity, seedPrice, sellPrice, encounterChance: seedTiers[rarity].encounterChance};
+  });
+
   const outfitStyles = [
     ['pink', 'Pink', '🩷', 0], ['mint', 'Mint', '💚', 0], ['lilac', 'Lilac', '💜', 0],
     ['peach', 'Peach', '🍑', 18], ['sky', 'Sky', '🩵', 22], ['rose', 'Rose', '🌹', 28],
@@ -125,7 +148,7 @@
   const quantityValid = value => Number.isSafeInteger(value) && value > 0;
   const failure = message => ({ok: false, message});
 
-  function init(state) {
+  function init(state, {newGarden = false} = {}) {
     const previous = state.economy && typeof state.economy === 'object' ? state.economy : {};
     const migrated = previous.version === 1;
     const owned = Array.isArray(previous.owned) ? previous.owned.filter(id => validItems.has(id)) : [];
@@ -144,8 +167,9 @@
       deliveries: number(previous.deliveries),
       sold: number(previous.sold)
     };
-    for (const {id} of flowers) {
-      wallet.seeds[id] = number(previous.seeds?.[id], 3);
+    for (const {id, rarity} of flowers) {
+      const starterSeeds = newGarden && !migrated ? (rarity === 'common' ? 3 : rarity === 'uncommon' ? 1 : 0) : 3;
+      wallet.seeds[id] = number(previous.seeds?.[id], starterSeeds);
       wallet.bag[id] = number(previous.bag?.[id], migrated ? 0 : number(state.counts?.[id]));
       wallet.discoveryMisses[id] = Math.min(4, number(previous.discoveryMisses?.[id]));
     }
@@ -272,37 +296,74 @@
     }
 
     function bloom(kind) {
-      if (!flowerById.has(kind)) return failure('Choose a flower to grow.');
+      const flower = flowerById.get(kind);
+      if (!flower) return failure('Choose a flower to grow.');
       const before = new Set(wallet.animals);
       syncMilestones();
-      const pool = animals.filter(animal => animal.seeds.includes(kind) && !wallet.animals.includes(animal.id));
-      let discovered = null;
-      if (pool.length) {
-        wallet.discoveryMisses[kind]++;
-        if (wallet.discoveryMisses[kind] >= 5 || Math.random() < .18) {
-          const totalWeight = pool.reduce((sum, animal) => sum + animal.weight, 0);
-          let draw = Math.random() * totalWeight;
-          discovered = pool[pool.length - 1].id;
-          for (const animal of pool) {
-            draw -= animal.weight;
-            if (draw < 0) {
-              discovered = animal.id;
-              break;
-            }
+      wallet.discoveryMisses[kind]++;
+      const odds = discoveryOdds(kind);
+      const encountered = wallet.discoveryMisses[kind] >= 5 || Math.random() < odds.encounterChance;
+      let result = null;
+      let duplicate = null;
+      if (encountered) {
+        wallet.discoveryMisses[kind] = 0;
+        const pool = eligibleAnimals(kind);
+        const tierDraw = Math.random();
+        let cumulative = 0;
+        let chosenTier = 'common';
+        for (const tier of ['common', 'rare', 'special']) {
+          cumulative += odds.tiers[tier];
+          if (tierDraw < cumulative) {
+            chosenTier = tier;
+            break;
           }
-          wallet.animals.push(discovered);
-          wallet.discoveryMisses[kind] = 0;
+        }
+        const candidates = pool.filter(animal => animal.rarity === chosenTier);
+        // Float rounding at the final boundary still selects a valid eligible friend.
+        const available = candidates.length ? candidates : pool;
+        const picked = available[Math.min(available.length - 1, Math.floor(Math.random() * available.length))];
+        if (wallet.animals.includes(picked.id)) duplicate = picked.id;
+        else {
+          wallet.animals.push(picked.id);
+          result = picked.id;
         }
       }
       return {
         ok: true,
-        animal: discovered || wallet.animals.find(id => !before.has(id)) || null,
-        animals: wallet.animals.filter(id => !before.has(id))
+        animal: result || wallet.animals.find(id => !before.has(id)) || null,
+        animals: wallet.animals.filter(id => !before.has(id)),
+        duplicate,
+        encountered
       };
     }
 
     return {data: wallet, earn, buySeed, plant, harvest, sell, buyItem, request, completeRequest, care, namePet, bloom};
   }
 
-  window.GardenEconomy = {flowers, items, animals, discoveryChance: .18, guaranteedBloom: 5, init};
+  function eligibleAnimals(kind) {
+    return animals.filter(animal => animal.blooms || animal.seeds.includes(kind));
+  }
+
+  function discoveryOdds(kind) {
+    const flower = flowerById.get(kind);
+    if (!flower) return null;
+    const settings = seedTiers[flower.rarity];
+    const pool = eligibleAnimals(kind);
+    const availableTiers = new Set(pool.map(animal => animal.rarity));
+    const total = Object.entries(settings.weights).reduce((sum, [tier, weight]) => sum + (availableTiers.has(tier) ? weight : 0), 0);
+    const tiers = Object.fromEntries(Object.entries(settings.weights).map(([tier, weight]) => [
+      tier, availableTiers.has(tier) ? weight / total : 0
+    ]));
+    const rareChance = settings.encounterChance * (tiers.rare + tiers.special);
+    return {
+      encounterChance: settings.encounterChance,
+      tiers,
+      rareChance,
+      description: Math.round(settings.encounterChance * 100) + '% animal encounter chance; '
+        + Math.round(rareChance * 1000) / 10 + '% rare or special chance per bloom. '
+        + 'After four blooms without an encounter, the next bloom brings an animal. An animal you already own can visit again.'
+    };
+  }
+
+  window.GardenEconomy = {flowers, items, animals, discoveryOdds, discoveryChance: .28, guaranteedBloom: 5, init};
 })();

@@ -630,18 +630,50 @@
       target.instanceMatrix.needsUpdate = true;
     }
 
+    let residentBounds;
+    let viewWidth = canvas.clientWidth;
+    let viewHeight = canvas.clientHeight;
+    function setResidentBounds(bounds) {
+      residentBounds = bounds?.clone();
+      resize(viewWidth, viewHeight);
+    }
+
     function resize(width, height) {
       width = Math.max(1, width || canvas.clientWidth);
       height = Math.max(1, height || canvas.clientHeight);
+      viewWidth = width;
+      viewHeight = height;
       const aspect = width / height;
-      const vertical = Math.max(7.5, 12.2 / aspect);
+      let vertical = Math.max(7.5, 12.2 / aspect);
+      if (residentBounds) {
+        const framed = residentBounds.clone();
+        framed.union(new T.Box3(new T.Vector3(-5.8, 0, -2.6), new T.Vector3(5.8, 2, 4.1)));
+        const center = framed.getCenter(new T.Vector3());
+        camera.position.copy(center).add(new T.Vector3(.3, 11, 14));
+        camera.lookAt(center);
+        camera.updateMatrixWorld();
+        let halfWidth = 0;
+        let halfHeight = 0;
+        const corner = new T.Vector3();
+        for (const x of [framed.min.x, framed.max.x]) {
+          for (const y of [framed.min.y, framed.max.y]) {
+            for (const z of [framed.min.z, framed.max.z]) {
+              corner.set(x,y,z).applyMatrix4(camera.matrixWorldInverse);
+              halfWidth = Math.max(halfWidth, Math.abs(corner.x));
+              halfHeight = Math.max(halfHeight, Math.abs(corner.y));
+            }
+          }
+        }
+        vertical = 2 * Math.max(halfHeight + .55, (halfWidth + .55) / aspect);
+      } else {
+        camera.position.set(.3, height < 360 ? 10.5 : 9.7, 12.8);
+        camera.lookAt(0, .57, -.12);
+      }
       const horizontal = vertical * aspect;
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
       camera.top = vertical / 2;
       camera.bottom = -vertical / 2;
-      camera.position.set(.3, height < 360 ? 10.5 : 9.7, 12.8);
-      camera.lookAt(0, .57, -.12);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
       renderer.setSize(width, height, false);
@@ -672,7 +704,7 @@
     }
     resize(canvas.clientWidth, canvas.clientHeight);
     return {
-      renderer, scene, camera, plots, vase, update, resize, setDecor, setArea, celebrate,
+      renderer, scene, camera, plots, vase, update, resize, setDecor, setArea, celebrate, setResidentBounds,
       avatarSpot: new T.Vector3(-4.25, 0, 1.5),
       rabbitSpot: new T.Vector3(-4.37, 0, 3.1),
       squirrelSpot: new T.Vector3(4.45, 0, 2.2),

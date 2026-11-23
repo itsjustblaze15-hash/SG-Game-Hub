@@ -56,6 +56,8 @@
 
     function shop() {
       $('shop-coins').textContent=wallet.coins;
+      $('shop-help').textContent=shopTab==='seeds' ? 'Each seed is used once. The shop never runs out.'
+        : shopTab==='sell' ? 'Sell picked flowers for more flower coins.' : 'Purchased decorations stay in your garden.';
       const content=$('shop-content');content.replaceChildren();
       $('shop-tabs').querySelectorAll('button').forEach(tab=>tab.setAttribute('aria-pressed',String(tab.dataset.tab===shopTab)));
       if(shopTab==='seeds' || shopTab==='sell') {
@@ -63,7 +65,15 @@
           const selling=shopTab==='sell';
           const count=selling?wallet.bag[flower.id]:wallet.seeds[flower.id];
           const item=card(flower.icon,flower.name,
-            selling ? count+' in basket · '+flower.sellPrice+' coins each' : count+' seeds owned · '+flower.seedPrice+' coins each');
+            selling ? count+' in basket · '+flower.sellPrice+' coins each' : flower.rarity+' · '+count+' owned · '+flower.seedPrice+' coins each');
+          if (!selling) {
+            const odds=document.createElement('p');
+            odds.className='seed-odds';
+            const chances=GardenEconomy.discoveryOdds(flower.id);
+            odds.textContent=Math.round(chances.encounterChance*100)+'% friend chance · '
+              +Math.round(chances.rareChance*1000)/10+'% rare/special';
+            item.append(odds);
+          }
           item.querySelector('.card-symbol').remove();
           item.prepend(modelCard('flower', flower, () => previewFlower($('shop-preview-host'), flower)));
           item.append(button(selling?'Sell one · +'+flower.sellPrice:'Buy one · '+flower.seedPrice,()=>{
@@ -142,7 +152,7 @@
       area.hidden=!pet || !wallet.animals.includes(selectedPet);
       if(area.hidden)return;
       $('pet-title').textContent=pet.icon+' '+(wallet.names[pet.id]||pet.name);
-      $('pet-description').textContent=pet.name+' is now beside your gardener. Grow another bloom to feed again.';
+      $('pet-description').textContent=pet.name+' has its own home in your garden. Grow another bloom to feed again.';
       $('pet-name').value=wallet.names[pet.id]||'';
       $('feed-pet').onclick=()=>{
         const result=economy.care(pet.id);

@@ -159,3 +159,19 @@ input{min-height:44px;border:1px solid #b9c5a6;border-radius:10px;max-width:190p
 #seed-preview-host .model-preview-hint { display: none; }
 #seed-preview-host .model-preview-controls { gap: 2px; }
 #seed-preview-host .model-preview-controls button { min-height: 38px; font-size: 17px; }
+.controls { display: flex; flex-direction: column; }
+.tools, .seed-inspector, .seed-stock-note { flex: none; }
+.seeds { flex: 1; }
+.tool-tip { flex: 1; }
+.seed-stock-note, .shop-help { font-size: 12px; line-height: 1.35; color: #5f714c; }
+.controls:has(.seeds[hidden]) .seed-stock-note { display: none; }
+.seed-odds { font-size: 11px !important; }
+.shop-help { margin-top: 5px; flex: none; }
+@media (max-height: 420px) {
+  .seed-stock-note, .shop-help { font-size: 10px; }
+}
+.seeds { grid-auto-rows: minmax(108px, auto); }
+.seeds button { min-height: 108px; }
+.seeds button small { line-height: 1.2; }
+.controls > .areas { position: static; flex: none; display: flex; flex-wrap: wrap; gap: 3px; }
+.controls > .areas button { flex: 1; font-size: 10px; padding: 4px; }
