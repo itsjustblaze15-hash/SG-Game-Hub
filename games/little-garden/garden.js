@@ -15,6 +15,7 @@
   };
   const state = load();
   const economy = GardenEconomy.init(state);
+  const previews = createGardenPreviews();
   const canvas = $('world');
   const gardenView = canvas.parentElement;
   const beds = $('beds');
@@ -300,6 +301,7 @@
     if (companion && !reducedMotion.matches) companion.position.y = Math.max(0,Math.sin(seconds * 2.6)) * .04;
     avatar?.userData.animate?.(seconds);
     wardrobeView?.update(seconds);
+    previews.update(seconds);
     for (const model of plotModels) {
       if (model) model.rotation.z = Math.sin(seconds * 1.4 + model.position.x) * .025;
     }
@@ -368,6 +370,8 @@
     button.onclick = () => {
       seed = id;
       for (const option of $('seeds').children) option.setAttribute('aria-pressed', String(option === button));
+      $('seed-inspector').hidden=false;
+      onPreview($('seed-preview-host'),'flower',species.get(id));
       showMessage('Plant a ' + name.toLowerCase() + ' in an empty bed.');
       cue([480]);
     };
@@ -381,8 +385,30 @@
     $('sound').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
   }
   $('sound').onclick = () => { state.sound = !state.sound; soundLabel(); save(); cue([523, 659]); };
+  function onPreview(host,type,definition) {
+    if (host.id !== 'seed-preview-host') $('seed-inspector').hidden=true;
+    previews.mount(host);
+    previews.show(type,definition);
+    const inspector=host.closest('.preview-side');
+    if(inspector) inspector.scrollTop=0;
+  }
+  $('close-seed-preview').onclick = () => {
+    $('seed-inspector').hidden=true;
+    previews.hide();
+  };
+  for (const button of $('seeds').children) {
+    const definition=species.get(button.dataset.seed);
+    previews.thumbnail('flower',definition).then(url=>{
+      if(!url)return;
+      const image=document.createElement('img');
+      image.src=url;
+      image.alt=definition.name+' 3D model';
+      image.className='model-thumbnail';
+      button.querySelector('span').replaceWith(image);
+    });
+  }
   activities = installGardenActivities({
-    state, economy, onChange: sync,
+    state, economy, onChange: sync, previews, onPreview,
     onFriend: setCompanion,
     onArea: area => world?.setArea(area),
     onCare: () => {

@@ -1,10 +1,11 @@
 (() => {
-  window.installGardenActivities = function({state,economy,onChange,onFriend,onCare,onArea}) {
+  window.installGardenActivities = function({state,economy,onChange,onFriend,onCare,onArea,previews,onPreview}) {
     const $=id=>document.getElementById(id);
     const wallet=state.economy;
     let shopTab='seeds';
     let animalFilter='all';
-    let selectedPet=wallet.animals[0] || null;
+    let selectedPet=wallet.animals[0] || GardenEconomy.animals[0].id;
+    let selectedFlower=GardenEconomy.flowers[0];
     function show(dialog) { if(!dialog.open) dialog.showModal(); }
     function note(id,result,success) {
       $(id).textContent=result.ok ? success : result.message;
@@ -24,6 +25,35 @@
       element.append(symbol,heading,text);
       return element;
     }
+    function modelCard(type, definition, select) {
+      const art = document.createElement('button');
+      art.type = 'button';
+      art.className = 'catalog-art';
+      art.setAttribute('aria-label', 'Preview ' + definition.name);
+      const fallback = document.createElement('span');
+      fallback.className = 'thumbnail-fallback';
+      fallback.textContent = definition.icon;
+      art.append(fallback);
+      previews.thumbnail(type, definition).then(url => {
+        if (!url) return;
+        const image = document.createElement('img');
+        image.className = 'model-thumbnail';
+        image.src = url;
+        image.alt = definition.name + ' 3D model';
+        fallback.replaceWith(image);
+      });
+      const hint = document.createElement('span');
+      hint.textContent = 'View in 3D';
+      art.append(hint);
+      art.onclick = select;
+      return art;
+    }
+
+    function previewFlower(host, flower) {
+      selectedFlower = flower;
+      onPreview(host, 'flower', flower);
+    }
+
     function shop() {
       $('shop-coins').textContent=wallet.coins;
       const content=$('shop-content');content.replaceChildren();
@@ -34,6 +64,8 @@
           const count=selling?wallet.bag[flower.id]:wallet.seeds[flower.id];
           const item=card(flower.icon,flower.name,
             selling ? count+' in basket · '+flower.sellPrice+' coins each' : count+' seeds owned · '+flower.seedPrice+' coins each');
+          item.querySelector('.card-symbol').remove();
+          item.prepend(modelCard('flower', flower, () => previewFlower($('shop-preview-host'), flower)));
           item.append(button(selling?'Sell one · +'+flower.sellPrice:'Buy one · '+flower.seedPrice,()=>{
             const result=selling?economy.sell(flower.id):economy.buySeed(flower.id);
             note('shop-status',result,selling?'Flower sold! +'+flower.sellPrice+' coins.':'A new '+flower.name.toLowerCase()+' seed!');
@@ -57,7 +89,12 @@
         }
       }
     }
-    $('shop-tabs').querySelectorAll('button').forEach(tab=>tab.onclick=()=>{shopTab=tab.dataset.tab;shop();});
+    $('shop-tabs').querySelectorAll('button').forEach(tab=>tab.onclick=()=>{
+      shopTab=tab.dataset.tab;
+      $('shop-preview-host').hidden=shopTab==='decor';
+      shop();
+      if(shopTab!=='decor')previewFlower($('shop-preview-host'),selectedFlower);
+    });
 
     function request() {
       const order=economy.request();
@@ -83,9 +120,16 @@
         const item=card(pet.icon,owned?(wallet.names[pet.id]||pet.name):pet.name,
           pet.rarity+' · '+(owned?'Discovered ✓':seed.name+' seeds'));
         item.classList.toggle('undiscovered',!owned);
+        item.querySelector('.card-symbol').remove();
+        item.prepend(modelCard('animal', pet, () => {
+          selectedPet = pet.id;
+          onPreview($('animal-preview-host'), 'animal', pet);
+          renderPet();
+        }));
         item.append(button(owned?'Meet '+(wallet.names[pet.id]||pet.name):'Not discovered',()=>{
           selectedPet=pet.id;
           onFriend(pet.id);
+          onPreview($('animal-preview-host'), 'animal', pet);
           renderPet();
         },!owned));
         list.append(item);
@@ -138,20 +182,30 @@
       const vase=$('flowers');vase.replaceChildren();
       for(const flower of GardenEconomy.flowers) {
         const chosen=state.vase.includes(flower.id);
-        const option=button(flower.icon+' '+flower.name+' · '+state.counts[flower.id],()=>{
+        const card=document.createElement('article');
+        card.className='flower-journal-card';
+        card.append(modelCard('flower',flower,()=>previewFlower($('journal-preview-host'),flower)));
+        const title=document.createElement('h4');
+        title.textContent=flower.name;
+        const count=document.createElement('p');
+        count.textContent=state.counts[flower.id]+' picked';
+        const option=button(chosen?'Remove from vase':'Add to vase',()=>{
           if(chosen)state.vase=state.vase.filter(id=>id!==flower.id);
           else state.vase=[...state.vase.slice(-5),flower.id];
           onChange();journal();
         },!state.counts[flower.id]);
-        option.setAttribute('aria-pressed',String(chosen));vase.append(option);
+        option.setAttribute('aria-pressed',String(chosen));
+        card.append(title,count,option);
+        vase.append(card);
       }
     }
+
     function areas() {
       const destinations=[['garden','🌷 Garden',null],['pond','🪷 Pond','decor-pond'],['butterfly','🦋 Meadow','decor-butterfly']];
       $('areas').replaceChildren(...destinations.map(([id,name,item])=>{
         const owned=!item||wallet.owned.includes(item);
         const choice=button(name+(owned?'':' 🔒'),()=>{
-          if(!owned){shopTab='decor';shop();show($('shop-dialog'));return;}
+          if(!owned){shopTab='decor';shop();$('shop-preview-host').hidden=true;show($('shop-dialog'));return;}
           state.area=id;onArea(id);onChange();areas();
         });
         choice.setAttribute('aria-pressed',String((state.area||'garden')===id));
@@ -159,10 +213,21 @@
       }));
     }
     return {
-      openShop(tab='seeds'){shopTab=tab;shop();$('shop-status').textContent='';show($('shop-dialog'));},
-      openAnimals(){animals();show($('animals-dialog'));},
+      openShop(tab='seeds'){
+        shopTab=tab;shop();$('shop-status').textContent='';show($('shop-dialog'));
+        $('shop-preview-host').hidden=shopTab==='decor';
+        if(shopTab!=='decor')previewFlower($('shop-preview-host'),selectedFlower);
+      },
+      openAnimals(){
+        animals();show($('animals-dialog'));
+        const pet=GardenEconomy.animals.find(pet=>pet.id===selectedPet);
+        onPreview($('animal-preview-host'),'animal',pet);
+      },
       openRequests(){request();show($('requests-dialog'));},
-      openJournal(){journal();show($('vase-dialog'));},
+      openJournal(){
+        journal();show($('vase-dialog'));
+        previewFlower($('journal-preview-host'),selectedFlower);
+      },
       refresh(){areas();if($('shop-dialog').open)shop();if($('requests-dialog').open)request();},
     };
   };
