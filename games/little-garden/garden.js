@@ -5,36 +5,8 @@
     return;
   }
 
-  const flowers = [
-    { id: 'daisy', name: 'Daisy', icon: '🌼' },
-    { id: 'sunflower', name: 'Sunflower', icon: '🌻' },
-    { id: 'cosmos', name: 'Cosmos', icon: '🌸' },
-    { id: 'lavender', name: 'Lavender', icon: '🪻' },
-    { id: 'tulip', name: 'Tulip', icon: '🌷' },
-    { id: 'poppy', name: 'Poppy', icon: '🏵️' }
-  ];
+  const flowers = GardenEconomy.flowers;
   const species = new Map(flowers.map(flower => [flower.id, flower]));
-  const wardrobe = [
-    {key: 'style', title: 'Hairstyle', choices: [
-      ['curls', 'Curls', '〰'], ['bob', 'Bob', '✿'], ['pigtails', 'Pigtails', '🎀']
-    ]},
-    {key: 'hair', title: 'Hair color', choices: [
-      ['brown', 'Brown', '🟤'], ['gold', 'Gold', '🟡'], ['black', 'Black', '⚫'], ['auburn', 'Auburn', '🟠']
-    ]},
-    {key: 'outfit', title: 'Overalls', choices: [
-      ['pink', 'Pink', '🩷'], ['mint', 'Mint', '💚'], ['lilac', 'Lilac', '💜']
-    ]},
-    {key: 'hat', title: 'Hat', choices: [
-      ['straw', 'Straw', '👒'], ['flower', 'Flower', '🌸'], ['none', 'None', '✦']
-    ]}
-  ];
-  const visitorTypes = [
-    {id: 'butterfly', name: 'Butterfly', icon: '🦋', blooms: 1},
-    {id: 'rabbit', name: 'Bunny', icon: '🐰', blooms: 3},
-    {id: 'bird', name: 'Bluebird', icon: '🐦', blooms: 6},
-    {id: 'squirrel', name: 'Squirrel', icon: '🐿️', blooms: 9},
-    {id: 'ladybug', name: 'Ladybug', icon: '🐞', blooms: 12}
-  ];
   const storageKey = 'sg-little-garden-v1';
   const tips = {
     plant: 'Tap an empty garden bed.',
@@ -42,6 +14,7 @@
     pick: 'Tap a flower that has opened.'
   };
   const state = load();
+  const economy = GardenEconomy.init(state);
   const canvas = $('world');
   const gardenView = canvas.parentElement;
   const beds = $('beds');
@@ -52,7 +25,9 @@
   let world;
   const visitors = new Map();
   let avatar;
-  let preview;
+  let wardrobeView;
+  let activities;
+  let companion;
   let frame;
   let tool = 'plant';
   let seed = flowers[0].id;
@@ -74,12 +49,10 @@
     const collected = Object.values(counts).reduce((sum, count) => sum + count, 0);
     const blooms = Number.isSafeInteger(saved?.blooms) ? Math.max(collected, saved.blooms) : collected;
     const vase = (Array.isArray(saved?.vase) ? saved.vase : []).filter(id => counts[id] > 0);
-    const outfit = Object.fromEntries(wardrobe.map(({key, choices}) => {
-      const value = saved?.outfit?.[key];
-      return [key, choices.some(([id]) => id === value) ? value : choices[0][0]];
-    }));
+    const outfit = {style:'curls', hair:'brown', outfit:'pink', hat:'straw', ...saved?.outfit};
     const solved = Number.isSafeInteger(saved?.solved) ? Math.max(0, saved.solved) : 0;
-    return {plots, counts, blooms, vase: [...new Set(vase)], sound: saved?.sound === true, outfit, solved};
+    const area = ['garden','pond','butterfly'].includes(saved?.area) ? saved.area : 'garden';
+    return {plots, counts, blooms, vase: [...new Set(vase)].slice(0,6), sound: saved?.sound === true, outfit, solved, economy:saved?.economy, area, companion:saved?.companion};
   }
 
   function save() {
@@ -134,7 +107,7 @@
     }
     $('seeds').hidden = tool !== 'plant';
     $('tool-tip').hidden = tool === 'plant';
-    $('tool-tip').textContent = tool === 'water' ? 'Water a seed, then water the sprout to bloom.' : 'Picked flowers go in your vase.';
+    $('tool-tip').textContent = tool === 'water' ? 'Water a seed, then water the sprout to bloom.' : 'Picked flowers go in your basket. Sell them at the shop or deliver a request.';
     showMessage(tips[tool]);
   }
 
@@ -149,7 +122,7 @@
     };
     const centers = world.plots.map(project);
     const horizontal = Math.abs(centers[1][0] - centers[0][0]);
-    const vertical = Math.abs(centers[2][1] - centers[0][1]);
+    const vertical = Math.abs(centers[4][1] - centers[0][1]);
     const hitWidth = Math.max(44, Math.min(140, horizontal * .92));
     const hitHeight = Math.max(44, Math.min(110, vertical * .92));
     bedButtons.forEach((button, index) => {
@@ -175,7 +148,7 @@
     if (plotModels[index]) world.scene.remove(plotModels[index]);
     plotModels[index] = null;
     if (plot) {
-      const model = GardenModels.flower(plot.kind, plot.stage, index);
+      const model = GardenCollectionModels.flower(species.get(plot.kind), plot.stage, index);
       model.position.copy(world.plots[index]);
       model.rotation.y = (index % 3 - 1) * .28;
       plotModels[index] = model;
@@ -189,7 +162,7 @@
     for (const model of vaseModels) world.scene.remove(model);
     vaseModels.length = 0;
     state.vase.forEach((kind, index) => {
-      const model = GardenModels.flower(kind, 2, index + 6);
+      const model = GardenCollectionModels.flower(species.get(kind), 2, index + 6);
       model.scale.setScalar(.31);
       model.position.copy(world.vase);
       model.position.x += (index % 2 ? .08 : -.08);
@@ -203,22 +176,35 @@
 
   function updateVisitors() {
     if (!world) return;
-    const models = {
-      butterfly: () => GardenModels.butterfly('pink'),
-      rabbit: GardenModels.bunny,
-      bird: GardenModels.bird,
-      squirrel: GardenModels.squirrel,
-      ladybug: GardenModels.ladybug
-    };
-    for (const {id, blooms} of visitorTypes) {
-      if (visitors.has(id) || state.blooms < blooms) continue;
-      const visitor = models[id]();
+    for (const [index, id] of ['butterfly','rabbit','bird','squirrel','ladybug'].entries()) {
+      if (visitors.has(id) || !state.economy.animals.includes(id)) continue;
+      const definition = GardenEconomy.animals.find(animal => animal.id === id);
+      const visitor = GardenCollectionModels.animal(definition);
       const spot = world[id + 'Spot'];
       if (spot) visitor.position.copy(spot);
-      visitor.rotation.y = {rabbit: .55, bird: -.65, squirrel: -.45, ladybug: .38}[id] || 0;
+      visitor.rotation.y = [.2,.55,-.65,-.45,.38][index];
       visitors.set(id, visitor);
       world.scene.add(visitor);
     }
+  }
+
+  function setCompanion(id) {
+    if (!world || !state.economy.animals.includes(id)) return;
+    if (companion) {
+      world.scene.remove(companion);
+      companion.traverse(mesh => {
+        if (mesh.isMesh && mesh.userData.collectionGeometry) mesh.geometry.dispose();
+      });
+    }
+    const definition = GardenEconomy.animals.find(animal => animal.id === id);
+    companion = GardenCollectionModels.animal(definition);
+    companion.position.copy(world.avatarSpot);
+    companion.position.x -= .48;
+    companion.position.z += .7;
+    companion.scale.setScalar(definition.base === 'bird' || definition.base === 'ladybug' ? 1.7 : .9);
+    world.scene.add(companion);
+    state.companion = id;
+    save();
   }
 
   function updateAvatar() {
@@ -233,77 +219,30 @@
       avatar.scale.setScalar(1.1);
       world.scene.add(avatar);
     }
-    if ($('wardrobe-dialog').open) renderAvatarPreview();
+
   }
 
-  function renderAvatarPreview() {
-    const view = $('avatar-preview');
-    const { width, height } = view.getBoundingClientRect();
-    if (!width || !height) return;
-    if (!preview) {
-      try {
-        const renderer = new THREE.WebGLRenderer({canvas: view, alpha: true, antialias: true});
-        renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        const scene = new THREE.Scene();
-        scene.add(new THREE.HemisphereLight(0xfff2dc, 0x93a175, 2.15));
-        const light = new THREE.DirectionalLight(0xffedd8, 2.1);
-        light.position.set(-2, 5, 4);
-        scene.add(light);
-        const camera = new THREE.PerspectiveCamera(35, width / height, .1, 20);
-        camera.position.set(.46, 1.05, 3.1);
-        camera.lookAt(0, .79, 0);
-        preview = {scene, renderer, camera, model: null};
-      } catch {
-        view.hidden = true;
-        $('avatar-fallback').hidden = false;
-        return;
-      }
+  function sync() {
+    $('coins').textContent = state.economy.coins;
+    for (const button of $('seeds').children) {
+      const flower = species.get(button.dataset.seed);
+      button.querySelector('small').textContent = state.economy.seeds[flower.id] + ' seeds';
     }
-    if (preview.model) {
-      preview.scene.remove(preview.model);
-      preview.model.userData.dispose?.();
-    }
-    preview.model = createGardenAvatar(state.outfit);
-    preview.scene.add(preview.model);
-    preview.camera.aspect = width / height;
-    preview.camera.updateProjectionMatrix();
-    preview.renderer.setSize(width, height, false);
-    preview.renderer.render(preview.scene, preview.camera);
-  }
-
-  function renderWardrobe() {
-    const options = $('wardrobe-options');
-    for (const {key, title, choices} of wardrobe) {
-      const field = document.createElement('fieldset');
-      const legend = document.createElement('legend');
-      legend.textContent = title;
-      const row = document.createElement('div');
-      row.className = 'wardrobe-choices';
-      for (const [id, name, icon] of choices) {
-        const choice = document.createElement('button');
-        choice.type = 'button';
-        choice.innerHTML = '<span aria-hidden="true">' + icon + '</span>' + name;
-        choice.setAttribute('aria-label', title + ': ' + name);
-        choice.setAttribute('aria-pressed', String(state.outfit[key] === id));
-        choice.onclick = () => {
-          state.outfit[key] = id;
-          for (const button of row.children) button.setAttribute('aria-pressed', String(button === choice));
-          updateAvatar();
-          save();
-          cue([523, 659]);
-        };
-        row.append(choice);
-      }
-      field.append(legend, row);
-      options.append(field);
-    }
+    world?.setDecor(state.economy.owned);
+    if (state.area !== 'garden' && !state.economy.owned.includes('decor-' + state.area)) state.area = 'garden';
+    world?.setArea(state.area);
+    updateVisitors();
+    updateVase();
+    activities?.refresh();
+    save();
   }
 
   function tend(index, showHints = true) {
     const plot = state.plots[index];
     if (tool === 'plant' && !plot) {
       const flower = species.get(seed);
+      const result = economy.plant(seed);
+      if (!result.ok) { showMessage(result.message); return; }
       state.plots[index] = {kind: seed, stage: 0};
       showMessage(flower.name + ' planted! Give it some water.');
       sparkle(index, '🌱');
@@ -312,8 +251,10 @@
       plot.stage++;
       if (plot.stage === 2) {
         state.blooms++;
-        const visitor = visitorTypes.find(({blooms}) => blooms === state.blooms);
-        showMessage(visitor ? 'A ' + visitor.name.toLowerCase() + ' came to visit!' : species.get(plot.kind).name + ' in bloom!');
+        const discovery = economy.bloom(plot.kind);
+        const friend = GardenEconomy.animals.find(animal => animal.id === discovery.animal);
+        showMessage(friend ? 'New friend! ' + friend.name + ' found you!' : species.get(plot.kind).name + ' in bloom!');
+        if (friend) setCompanion(friend.id);
         sparkle(index, '✨');
         cue([523, 659, 784]);
         updateVisitors();
@@ -323,10 +264,12 @@
         cue([660, 880]);
       }
     } else if (tool === 'pick' && plot?.stage === 2) {
+      const harvest = economy.harvest(plot.kind);
+      if (!harvest.ok) { showMessage(harvest.message); return; }
       state.counts[plot.kind]++;
-      if (!state.vase.includes(plot.kind)) state.vase.push(plot.kind);
+      if (!state.vase.includes(plot.kind)) state.vase = [...state.vase.slice(-5), plot.kind];
       state.plots[index] = null;
-      showMessage('A ' + species.get(plot.kind).name.toLowerCase() + ' for your vase!');
+      showMessage('A ' + species.get(plot.kind).name.toLowerCase() + ' for your basket! Sell it or make a bouquet.');
       sparkle(index, species.get(plot.kind).icon);
       cue([587, 740, 880]);
       updateVase();
@@ -338,40 +281,10 @@
       else showMessage('Try an empty bed.');
       return;
     }
+    const celebration = tool === 'plant' ? 'plant' : tool === 'pick' ? 'pick' : state.plots[index].stage === 2 ? 'bloom' : 'water';
+    if (world) world.celebrate(world.plots[index], celebration);
     updatePlot(index);
-    save();
-  }
-
-  function renderCollection() {
-    $('puzzle-count').textContent = state.solved;
-    $('visitor-list').replaceChildren(...visitorTypes.map(({name, icon, blooms}) => {
-      const item = document.createElement('li');
-      const label = document.createElement('strong');
-      label.textContent = icon + ' ' + name;
-      const status = document.createElement('span');
-      status.textContent = state.blooms >= blooms ? 'Visited ✓' : blooms + (blooms === 1 ? ' bloom' : ' blooms');
-      item.append(label, status);
-      return item;
-    }));
-    $('flowers').replaceChildren(...flowers.map(({id, name, icon}) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = icon + ' ' + name + ' · ' + state.counts[id];
-      button.disabled = !state.counts[id];
-      button.setAttribute('aria-pressed', String(state.vase.includes(id)));
-      button.onclick = () => {
-        const index = state.vase.indexOf(id);
-        if (index === -1) state.vase.push(id);
-        else state.vase.splice(index, 1);
-        button.setAttribute('aria-pressed', String(index === -1));
-        updateVase();
-        save();
-      };
-      return button;
-    }));
-    $('vase-guide').textContent = Object.values(state.counts).some(Boolean)
-      ? 'Tap your flowers to arrange what goes in the garden vase.'
-      : 'Pick a flower that has bloomed to put it in your vase.';
+    sync();
   }
 
   function render(time) {
@@ -383,7 +296,13 @@
       butterfly.rotation.y = seconds * .75 + Math.PI / 2;
     }
     for (const visitor of visitors.values()) visitor.userData.animate?.(seconds);
+    companion?.userData.animate?.(seconds);
+    if (companion && !reducedMotion.matches) companion.position.y = Math.max(0,Math.sin(seconds * 2.6)) * .04;
     avatar?.userData.animate?.(seconds);
+    wardrobeView?.update(seconds);
+    for (const model of plotModels) {
+      if (model) model.rotation.z = Math.sin(seconds * 1.4 + model.position.x) * .025;
+    }
     world.renderer.render(world.scene, world.camera);
     frame = requestAnimationFrame(render);
   }
@@ -443,7 +362,7 @@
   for (const {id, name, icon} of flowers) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.innerHTML = '<span aria-hidden="true">' + icon + '</span>' + name;
+    button.innerHTML = '<span aria-hidden="true">' + icon + '</span>' + name + '<small></small>';
     button.dataset.seed = id;
     button.setAttribute('aria-pressed', String(id === seed));
     button.onclick = () => {
@@ -462,20 +381,32 @@
     $('sound').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
   }
   $('sound').onclick = () => { state.sound = !state.sound; soundLabel(); save(); cue([523, 659]); };
-  $('collection').onclick = () => { renderCollection(); $('vase-dialog').showModal(); cue([587]); };
-  renderWardrobe();
-  $('dress-up').onclick = () => {
-    $('wardrobe-dialog').showModal();
-    renderAvatarPreview();
-    cue([587]);
-  };
-  new ResizeObserver(() => {
-    if ($('wardrobe-dialog').open) renderAvatarPreview();
-  }).observe($('avatar-preview'));
+  activities = installGardenActivities({
+    state, economy, onChange: sync,
+    onFriend: setCompanion,
+    onArea: area => world?.setArea(area),
+    onCare: () => {
+      if (world) world.celebrate(world.avatarSpot,'heart');
+      cue([523,659]);
+    }
+  });
+  wardrobeView = installGardenWardrobe($('wardrobe-dialog'), {
+    getOutfit: () => state.outfit,
+    getOwned: () => state.economy.owned,
+    getCoins: () => state.economy.coins,
+    onEquip: (key, value) => { state.outfit[key] = value; updateAvatar(); save(); cue([523,659]); },
+    onBuy: id => { const result = economy.buyItem(id); if (result.ok) sync(); return result; }
+  });
+  $('collection').onclick = () => activities.openJournal();
+  $('shop').onclick = () => activities.openShop();
+  $('requests').onclick = () => activities.openRequests();
+  $('animals').onclick = () => activities.openAnimals();
+  $('dress-up').onclick = () => wardrobeView.open();
   const puzzles = installGardenPuzzles($('puzzles-dialog'), {
     onSolve: () => {
       state.solved++;
-      save();
+      economy.earn(2);
+      sync();
       cue([523, 659, 784]);
     }
   });
@@ -499,6 +430,8 @@
     updateAvatar();
     updateVase();
     selectTool('plant');
+    sync();
+    if (state.companion) setCompanion(state.companion);
     cue([392, 523, 659]);
   };
   document.addEventListener('visibilitychange', () => {
@@ -507,6 +440,16 @@
     else frame = requestAnimationFrame(render);
   });
   document.addEventListener('contextmenu', event => event.preventDefault());
+  function orientation() {
+    const portrait = innerHeight > innerWidth;
+    $('screen-rotate').hidden = !portrait;
+    $('game').inert = portrait;
+    $('welcome').inert = portrait;
+    if (portrait) document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+  }
+  addEventListener('resize', orientation);
+  orientation();
   soundLabel();
+  sync();
   $('welcome').hidden = false;
 })();

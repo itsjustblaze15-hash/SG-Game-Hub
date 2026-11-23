@@ -6,26 +6,35 @@
   <meta name="theme-color" content="#f8f0db">
   <meta name="description" content="Plant, water, and pick flowers in a peaceful garden full of little visitors.">
   <title>Little Garden</title>
-  <link rel="stylesheet" href="garden.css?v=2">
-  <link rel="stylesheet" href="puzzles.css?v=2">
+  <link rel="stylesheet" href="garden.css?v=3">
+  <link rel="stylesheet" href="puzzles.css?v=3">
+  <link rel="stylesheet" href="wardrobe.css?v=3">
   <script>
     window.gardenPhone = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   </script>
   <script defer src="../redwood/vendor/three.min.js"></script>
-  <script defer src="scene.js?v=2"></script>
-  <script defer src="models.js?v=2"></script>
-  <script defer src="avatar.js?v=2"></script>
-  <script defer src="puzzles.js?v=2"></script>
-  <script defer src="garden.js?v=2"></script>
+  <script defer src="scene.js?v=3"></script>
+  <script defer src="models.js?v=3"></script>
+  <script defer src="avatar.js?v=3"></script>
+  <script defer src="puzzles.js?v=3"></script>
+  <script defer src="economy.js?v=3"></script>
+  <script defer src="collection-models.js?v=3"></script>
+  <script defer src="wardrobe.js?v=3"></script>
+  <script defer src="activities.js?v=3"></script>
+  <script defer src="garden.js?v=3"></script>
 </head>
 <body>
+  <section id="screen-rotate" class="screen-rotate" hidden>
+    <span aria-hidden="true">↻</span><h1>Turn your screen sideways</h1>
+    <p>Your garden has more room in landscape.</p>
+  </section>
   <main id="welcome" class="welcome" hidden>
     <img class="cover" src="../../assets/little-garden.jpg" alt="Little Garden, with a girl watering seedlings beside a bunny and a squirrel">
     <div class="welcome-copy">
       <p class="eyebrow">PLANT · WATER · PICK</p>
       <h1>Little Garden</h1>
-      <p>Grow flowers, dress up your gardener, and meet little visitors.</p>
+      <p>Grow and sell flowers, help animal friends, and build a garden of your own.</p>
       <button type="button" class="primary" id="start">Play</button>
     </div>
   </main>
@@ -43,16 +52,20 @@
       <div class="game-header-actions">
         <button type="button" id="sound" aria-label="Turn sound on" aria-pressed="false">♫</button>
       </div>
-    </header>
+    <span id="wallet" class="wallet" aria-label="Flower coins">🪙 <span id="coins">24</span></span>
     <nav class="garden-tabs" aria-label="Garden activities">
       <button type="button" id="dress-up"><span aria-hidden="true">👒</span> Dress up</button>
       <button type="button" id="puzzles"><span aria-hidden="true">🧩</span> Puzzles</button>
+      <button type="button" id="shop"><span aria-hidden="true">🛍️</span> Shop</button>
+      <button type="button" id="requests"><span aria-hidden="true">💐</span> Requests</button>
+      <button type="button" id="animals"><span aria-hidden="true">🐾</span> Animals</button>
       <button type="button" id="collection" aria-label="Open flower collection and visitors journal"><span aria-hidden="true">📖</span> Journal</button>
-    </nav>
+    </nav></header>
     <section class="garden-view" aria-label="Garden beds">
       <canvas id="world" aria-hidden="true"></canvas>
       <div id="beds" class="beds"></div>
       <div id="effect" class="effect" aria-hidden="true"></div>
+      <div id="areas" class="areas" aria-label="Garden areas"></div>
       <p class="status"><span id="guide" role="status"></span></p>
     </section>
     <section class="controls" aria-label="Garden tools">
@@ -71,24 +84,38 @@
       <form method="dialog"><button type="submit" aria-label="Close flower collection">×</button></form>
     </div>
     <div class="journal-summary"><span><span aria-hidden="true">💐</span> <span id="bouquet-count">0</span> picked</span><span><span aria-hidden="true">⭐</span> <span id="puzzle-count">0</span> puzzles</span></div>
-    <h3>Visitors</h3>
-    <ul class="visitor-list" id="visitor-list"></ul>
+    <h3>Sticker book</h3>
+    <div id="stickers" class="activity-grid"></div>
     <h3>My flowers</h3>
     <p id="vase-guide">Pick a flower that has bloomed to put it in your vase.</p>
     <div id="flowers" class="collection"></div>
   </dialog>
-  <dialog id="wardrobe-dialog" class="wardrobe" aria-labelledby="wardrobe-title">
-    <div class="vase-header">
-      <h2 id="wardrobe-title">Dress up</h2>
-      <form method="dialog"><button type="submit" aria-label="Close dress up">×</button></form>
+  <dialog id="wardrobe-dialog" class="wardrobe" aria-label="Dress up"></dialog>
+  <dialog id="shop-dialog" class="activity-dialog" aria-labelledby="shop-title">
+    <div class="vase-header"><h2 id="shop-title">Garden shop</h2><span class="wallet">🪙 <span id="shop-coins"></span></span><form method="dialog"><button aria-label="Close shop">×</button></form></div>
+    <div id="shop-tabs" class="activity-tabs" role="group" aria-label="Shop category">
+      <button data-tab="seeds" aria-pressed="true">🌱 Seeds</button><button data-tab="sell" aria-pressed="false">💐 Sell flowers</button><button data-tab="decor" aria-pressed="false">🏡 Decor & areas</button>
     </div>
-    <div class="wardrobe-body">
-      <div class="avatar-preview">
-        <canvas id="avatar-preview" aria-hidden="true"></canvas>
-        <span id="avatar-fallback" aria-hidden="true" hidden>👩‍🌾</span>
-      </div>
-      <div id="wardrobe-options" class="wardrobe-options"></div>
+    <p id="shop-status" role="status" class="activity-status"></p>
+    <div id="shop-content" class="activity-grid"></div>
+  </dialog>
+  <dialog id="requests-dialog" class="activity-dialog" aria-labelledby="requests-title">
+    <div class="vase-header"><h2 id="requests-title">Little requests</h2><form method="dialog"><button aria-label="Close requests">×</button></form></div>
+    <div class="request-card"><h3 id="request-title"></h3><p id="request-description"></p><p id="request-progress"></p><button id="deliver" class="primary">Deliver bouquet</button></div>
+    <p id="request-status" role="status" class="activity-status"></p>
+  </dialog>
+  <dialog id="animals-dialog" class="activity-dialog" aria-labelledby="animals-title">
+    <div class="vase-header"><h2 id="animals-title">Animal friends <small id="animal-count"></small></h2><form method="dialog"><button aria-label="Close animals">×</button></form></div>
+    <p class="album-guide">Each blooming seed has an 18% chance to bring a new friend. A new friend is guaranteed by the fifth try for that seed while it has friends left to discover.</p>
+    <div id="animal-filters" class="activity-tabs" role="group" aria-label="Animal collection filter">
+      <button data-filter="all" aria-pressed="true">All friends</button><button data-filter="owned" aria-pressed="false">Discovered</button><button data-filter="missing" aria-pressed="false">To find</button>
     </div>
+    <section id="pet-care" class="pet-care" hidden><h3 id="pet-title"></h3><p id="pet-description"></p>
+      <div class="pet-actions"><button id="feed-pet">🥕 Feed & pet</button>
+      <form id="name-pet"><label>Pet name <input id="pet-name" maxlength="24" autocomplete="off" placeholder="Choose a name"></label><button>Save name</button></form></div>
+    </section>
+    <p id="animal-status" role="status" class="activity-status"></p>
+    <div id="animal-cards" class="activity-grid"></div>
   </dialog>
   <dialog id="puzzles-dialog" aria-label="Garden puzzles"></dialog>
 </body>

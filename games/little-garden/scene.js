@@ -121,27 +121,28 @@
     const soilMaterial = new T.MeshStandardMaterial({ map: mulch, roughness: 1 });
     const rimColors = [0xd98b59, 0xc87a4f, 0xd99a61, 0xc98554, 0xbe7351];
     const plots = [];
-    for (const z of [-1.98, -.04, 1.9, 3.84]) {
-      for (const x of [-1.55, 1.55]) {
-        shade(x + .14, z + .12, 3.25, 2.5);
-        model(planter, 0xb57149, x, .055, z, 1, 1, 1, -Math.PI / 2);
+    for (const z of [-.8, 1.7]) {
+      for (const x of [-3, -1, 1, 3]) {
+        shade(x + .1, z + .1, 2.15, 1.95);
+        model(planter, 0xb57149, x, .055, z, .7, .8, 1, -Math.PI / 2);
         const soil = mesh(soilGeometry, soilMaterial, x, .29, z);
         soil.rotation.x = -Math.PI / 2;
+        soil.scale.set(.7, .8, 1);
         for (let i = 0; i < 6; i++) {
-          const offset = (i - 2.5) * .37;
+          const offset = (i - 2.5) * .259;
           const jitter = range(-.014, .014);
           const color = rimColors[(i + plots.length) % rimColors.length];
-          model(pebble, color, x + offset, .27, z + .795, .232, .105 + jitter, .143);
-          model(pebble, color, x + offset, .26, z - .795, .232, .115, .135);
+          model(pebble, color, x + offset, .27, z + .636, .166, .105 + jitter, .12);
+          model(pebble, color, x + offset, .26, z - .636, .166, .115, .114);
         }
         for (let i = 0; i < 4; i++) {
-          const offset = (i - 1.5) * .36;
+          const offset = (i - 1.5) * .288;
           const color = rimColors[(i + 2 * plots.length) % rimColors.length];
-          model(pebble, color, x - 1.115, .265, z + offset, .154, .11, .239);
-          model(pebble, color, x + 1.115, .265, z + offset, .154, .11, .239);
+          model(pebble, color, x - .781, .265, z + offset, .12, .11, .196);
+          model(pebble, color, x + .781, .265, z + offset, .12, .11, .196);
         }
         for (let i = 0; i < 32; i++) {
-          model(pebble, i % 3 === 0 ? 0xc08e67 : 0x60412c, x + range(-.96, .96), .293, z + range(-.64, .64), range(.015, .055), range(.008, .028), range(.022, .048), 0, range(0, Math.PI));
+          model(pebble, i % 3 === 0 ? 0xc08e67 : 0x60412c, x + range(-.67, .67), .293, z + range(-.51, .51), range(.015, .055), range(.008, .028), range(.022, .048), 0, range(0, Math.PI));
         }
         plots.push(new T.Vector3(x, .32, z));
       }
@@ -314,10 +315,10 @@
     for (let i = 0; i < 106; i++) {
       const x = range(-7.5,7.5);
       const z = range(-3.02,6.5);
-      if (Math.abs(x) > 2.88 || z > 3.55 || (Math.abs(x) > .48 && Math.abs(x) < 1.02 && z > 3.45)) tuft(x, z, range(.55, 1.22));
+      if (!plots.some(plot => Math.abs(x - plot.x) < .95 && Math.abs(z - plot.z) < .85)) tuft(x, z, range(.55, 1.22));
     }
     const colors = [0xed8bb3,0xf6c6c8,0xffebc5,0xc19ae9,0xffbc66];
-    for (const [bedX, bedZ] of [[-3.43,-2.02],[3.5,-2.17],[-3.58,.09],[3.57,1.19],[-3.65,3.65],[3.75,4.23]]) {
+    for (const [bedX, bedZ] of [[-4.2,-2.02],[4.4,-2.17],[-5.05,2.65],[4.95,1.19],[-3.65,3.65],[3.75,4.23]]) {
       shade(bedX, bedZ, 1.63, 1.13);
       model(round, 0x6a9e4d, bedX, .093, bedZ, .46, .18, .43);
       for (let i = 0; i < 9; i++) {
@@ -349,8 +350,8 @@
     model(petal, 0xfeab5d, canX, .199, canZ+.219,.029,.029,.016);
 
     // A terracotta table and a glazed blue vase for flowers picked by the player.
-    const vaseX = 3.38;
-    const vaseZ = 4.13;
+    const vaseX = 4.05;
+    const vaseZ = 3.43;
     const vase = new T.Vector3(vaseX, .85, vaseZ);
     shade(vaseX, vaseZ, 1.47, 1.12);
     for (const x of [-.27,.25]) {
@@ -375,7 +376,7 @@
       scene.add(group);
     }
 
-    shade(-3.17, 1.52, 1.42, 1.02);
+    shade(-4.25, 1.5, 1.42, 1.02);
     const clouds = [];
     const cloudMaterial = new T.MeshStandardMaterial({ color: 0xfffbef, roughness: 1 });
     for (const [x,y,z] of [[-8,5.6,-14],[3.1,6,-16],[11,4.8,-13]]) {
@@ -391,34 +392,291 @@
       clouds.push({ cloud, x });
     }
 
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const decorations = new Map();
+    const decorMaterial = new T.MeshStandardMaterial({ roughness: .78 });
+    const torus = new T.TorusGeometry(1, .11, 8, 28);
+    let area = 'garden';
+    let ownedDecor = new Set();
+    let lastSeconds = 0;
+
+    function decoration(id, build) {
+      const root = new T.Group();
+      const parts = new Map();
+      function part(geometry, color, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
+        if (!parts.has(geometry)) parts.set(geometry, []);
+        placement.position.set(x, y, z);
+        placement.scale.set(sx, sy, sz);
+        placement.rotation.set(rx, ry, rz);
+        placement.updateMatrix();
+        parts.get(geometry).push({ matrix: placement.matrix.clone(), color });
+      }
+      build(part);
+      for (const [geometry, instances] of parts) {
+        const object = new T.InstancedMesh(geometry, decorMaterial, instances.length);
+        instances.forEach(({matrix, color}, index) => {
+          object.setMatrixAt(index, matrix);
+          object.setColorAt(index, new T.Color(color));
+        });
+        object.computeBoundingSphere();
+        root.add(object);
+      }
+      root.visible = false;
+      scene.add(root);
+      decorations.set(id, root);
+      return root;
+    }
+
+    decoration('birdbath', part => {
+      const x = 4.85, z = 1.1;
+      part(tube, 0xe3c594, x, .08, z, .4, .16, .34);
+      part(taper, 0xdbc8ab, x, .4, z, .16, .65, .16);
+      part(round, 0xf5d2b0, x, .75, z, .47, .09, .41);
+      part(torus, 0xf6dfbc, x, .79, z, .43, .38, .26, Math.PI / 2);
+      part(tube, 0x7ac3cf, x, .79, z, .35, .018, .30);
+      part(torus, 0xd2f2ed, x, .808, z, .18, .15, .08, Math.PI / 2);
+    });
+    decoration('house', part => {
+      const x = -4.86, z = -2.02;
+      part(box, 0xf4cd9b, x, .3, z, .74, .6, .59);
+      part(round, 0xf8debb, x, .3, z + .31, .34, .3, .025);
+      part(round, 0x635447, x, .245, z + .345, .14, .215, .012);
+      part(box, 0xd19f6d, x, .03, z + .42, .47, .055, .28);
+      for (const side of [-1, 1]) {
+        part(box, 0xd57e9b, x + side * .2, .7, z, .55, .065, .76, 0, 0, -side * .65);
+      }
+      part(petal, 0xffecd0, x + .25, .32, z + .34, .08, .08, .025);
+      part(petal, 0xffbd55, x + .25, .32, z + .37, .035, .035, .018);
+      part(tube, 0xb87f62, x + .32, .29, z + .02, .07, .14, .07, Math.PI/2);
+    });
+    const lanternGroup = decoration('lanterns', part => {
+      for (const [x,z] of [[-2.9,3.8],[0,3.75],[2.9,3.8]]) {
+        part(tube, 0xa8775b, x, .45, z, .027, .9, .027);
+        part(tube, 0xbd8865, x, .83, z, .22, .06, .22);
+        part(round, 0xffd78b, x, 1, z, .17, .22, .17);
+        part(torus, 0xeab176, x, 1.15, z, .15, .15, .17, Math.PI / 2);
+        part(torus, 0xeab176, x, .85, z, .15, .15, .17, Math.PI / 2);
+        part(tube, 0xeeb76f, x, 1.2, z, .025, .08, .025);
+      }
+    });
+
+    const pondX = 4.55, pondZ = -.95;
+    const pond = decoration('pond', part => {
+      part(round, 0xb9b598, pondX, -.005, pondZ, 1.08, .1, .9);
+      part(round, 0x6eacbc, pondX, .045, pondZ, .96, .07, .78);
+      part(round, 0x91d3d7, pondX - .08, .075, pondZ, .79, .015, .58);
+      for (let i = 0; i < 18; i++) {
+        const angle = i * Math.PI / 9;
+        part(pebble, [0xc4ba99,0xe1ccaa,0xb9c5a2][i % 3], pondX + Math.cos(angle), .1, pondZ + Math.sin(angle) * .83, .18, .09, .13, 0, angle);
+      }
+      for (const [x,z] of [[-.34,.3],[.42,-.15],[-.2,-.38]]) {
+        part(tube, 0x91b666, pondX + x, .101, pondZ + z, .17, .012, .14);
+        for (let i = 0; i < 6; i++) {
+          const angle = i * Math.PI / 3;
+          part(petal, 0xf3a5c1, pondX + x + Math.cos(angle) * .065, .15, pondZ + z + Math.sin(angle) * .065, .085, .035, .04, 0, -angle);
+        }
+        part(petal, 0xffdc83, pondX + x, .165, pondZ + z, .04, .025, .04);
+      }
+      for (const [x,z] of [[-.8,-.3],[.8,.3],[.45,-.7]]) {
+        for (let i = 0; i < 3; i++) {
+          const dx = (i - 1) * .07;
+          part(taper, 0x72985a, pondX + x + dx, .26, pondZ + z, .012, .47 + i * .04, .013, 0, 0, dx);
+          part(tube, 0xa16a48, pondX + x + dx, .49 + i * .025, pondZ + z, .027, .11, .027);
+        }
+      }
+    });
+    const ripples = [];
+    const rippleMaterial = new T.MeshBasicMaterial({color: 0xd7f4ed, transparent: true, opacity: .56});
+    for (let i = 0; i < 2; i++) {
+      const ripple = new T.Mesh(torus, rippleMaterial);
+      ripple.position.set(pondX + .28, .13 + i * .002, pondZ + .14);
+      ripple.rotation.x = -Math.PI / 2;
+      pond.add(ripple);
+      ripples.push(ripple);
+    }
+
+    const patch = decoration('butterfly', part => {
+      const x = -4.85, z = -.75;
+      part(round, 0x7eab5b, x, .005, z, .97, .11, .93);
+      for (let i = 0; i < 15; i++) {
+        const angle = i * 2.399;
+        const radius = .22 + (i % 4) * .17;
+        const px = x + Math.cos(angle) * radius;
+        const pz = z + Math.sin(angle) * radius;
+        const height = .28 + (i % 3) * .13;
+        part(tube, 0x5d9452, px, height / 2, pz, .018, height, .018);
+        const color = [0xc299df,0xf5b2d2,0xffd894][i % 3];
+        for (let j = 0; j < 5; j++) {
+          const theta = j * Math.PI * .4;
+          part(petal, color, px + Math.cos(theta) * .07, height, pz + Math.sin(theta) * .07, .075, .03, .044, 0, -theta);
+        }
+        part(petal, 0xffe8a3, px, height + .025, pz, .035, .022, .035);
+      }
+      part(box, 0xcba079, x, .23, z - .75, .64, .1, .16);
+      for (const side of [-1,1]) part(box, 0xba8a67, x + side * .24, .1, z - .75, .055, .2, .055);
+    });
+    const fluttering = [];
+    for (let i = 0; i < 3; i++) {
+      const butterfly = new T.Group();
+      const body = new T.Mesh(new T.SphereGeometry(.025, 6, 4), new T.MeshStandardMaterial({color:0x8f6558}));
+      body.scale.set(1,2.4,1);
+      butterfly.add(body);
+      const wings = [];
+      const color = [0xffc86c,0xd6a2eb,0xa3dce4][i];
+      const wingMaterial = new T.MeshStandardMaterial({color, roughness:.8, side:T.DoubleSide});
+      for (const side of [-1,1]) {
+        const wing = new T.Group();
+        const top = new T.Mesh(petal, wingMaterial);
+        top.position.set(side * .09,.045,0);
+        top.scale.set(.12,.13,.018);
+        top.rotation.z = -side * .38;
+        const bottom = new T.Mesh(petal, wingMaterial);
+        bottom.position.set(side * .068,-.07,0);
+        bottom.scale.set(.085,.092,.015);
+        wing.add(top,bottom);
+        butterfly.add(wing);
+        wings.push({wing,side});
+      }
+      patch.add(butterfly);
+      fluttering.push({butterfly,wings});
+    }
+
+    const areaWash = new T.Mesh(new T.PlaneGeometry(32,30), new T.MeshBasicMaterial({color:0xaed7c2, transparent:true, opacity:.12, depthWrite:false}));
+    areaWash.rotation.x = -Math.PI / 2;
+    areaWash.position.set(0,-.043,-4);
+    areaWash.visible = false;
+    scene.add(areaWash);
+    function setDecor(ownedIds = []) {
+      ownedDecor = new Set(ownedIds.map(id => String(id).replace(/^decor[:\-]/,'')));
+      for (const [id, group] of decorations) group.visible = ownedDecor.has(id);
+      if (!ownedDecor.has(area)) area = 'garden';
+      setArea(area);
+    }
+    function setArea(next) {
+      area = ['pond','butterfly'].includes(next) && ownedDecor.has(next) ? next : 'garden';
+      areaWash.visible = area !== 'garden';
+      areaWash.material.color.set(area === 'pond' ? 0xa0d4e4 : 0xf7c3e1);
+      areaWash.material.opacity = area === 'garden' ? 0 : .17;
+      scene.background.set(area === 'pond' ? 0xc1e8ed : area === 'butterfly' ? 0xf5dfeb : 0xbce9f2);
+      pond.scale.setScalar(1);
+      patch.scale.setScalar(1);
+      return area;
+    }
+
+    const heartShape = new T.Shape();
+    heartShape.moveTo(0,.02);
+    heartShape.bezierCurveTo(-.17,.22,-.29,.02,0,-.19);
+    heartShape.bezierCurveTo(.29,.02,.17,.22,0,.02);
+    const heartGeometry = new T.ShapeGeometry(heartShape,10);
+    const particleMaterial = new T.MeshBasicMaterial({side:T.DoubleSide});
+    const particleGeometry = new T.SphereGeometry(1,7,5);
+    const particleMesh = new T.InstancedMesh(particleGeometry,particleMaterial,48);
+    const heartMesh = new T.InstancedMesh(heartGeometry,particleMaterial,18);
+    particleMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+    heartMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+    particleMesh.frustumCulled = heartMesh.frustumCulled = false;
+    scene.add(particleMesh,heartMesh);
+    const particles = Array.from({length:48},()=>({life:0,start:0,kind:'',origin:new T.Vector3(),velocity:new T.Vector3(),size:0}));
+    const hearts = Array.from({length:18},()=>({life:0,start:0,kind:'',origin:new T.Vector3(),velocity:new T.Vector3(),size:0}));
+    const hiddenMatrix = new T.Matrix4().makeScale(0,0,0);
+    for (let i=0;i<48;i++) particleMesh.setMatrixAt(i,hiddenMatrix);
+    for (let i=0;i<18;i++) heartMesh.setMatrixAt(i,hiddenMatrix);
+    let particleCursor = 0;
+    let heartCursor = 0;
+    function celebrate(position, kind = 'bloom') {
+      if (reducedMotion.matches || !position) return;
+      const heart = kind === 'heart';
+      const pool = heart ? hearts : particles;
+      const target = heart ? heartMesh : particleMesh;
+      const count = heart ? 5 : kind === 'water' ? 13 : 10;
+      const palette = kind === 'water' ? [0x91ddf1,0xc8f4fc,0x6dc5e0] : kind === 'pick' ? [0xffde83,0xffc761,0xfff1bc] : [0xf6a6cb,0xcbb2f0,0xffe6a3];
+      for (let i=0;i<count;i++) {
+        const index = heart ? heartCursor++ % pool.length : particleCursor++ % pool.length;
+        const particle = pool[index];
+        const angle = i * 2.399;
+        const spread = kind === 'water' ? .3 : .5;
+        particle.start = lastSeconds;
+        particle.life = kind === 'water' ? .7 : 1.1;
+        particle.kind = kind;
+        particle.origin.copy(position);
+        particle.origin.y += kind === 'water' ? 1.25 : .5;
+        particle.origin.x += Math.cos(angle) * (kind === 'water' ? .2 : .06);
+        particle.origin.z += Math.sin(angle) * .12;
+        particle.velocity.set(Math.cos(angle)*spread,kind === 'water' ? -1.2 : .9 + (i%3)*.15,Math.sin(angle)*spread);
+        particle.size = heart ? .44 : kind === 'water' ? .055 : .045 + (i%3)*.015;
+        target.setColorAt(index,new T.Color(heart ? 0xf39fbc : palette[i%palette.length]));
+      }
+      target.instanceColor.needsUpdate = true;
+    }
+    function updateParticles(pool, target, seconds) {
+      for (let index=0;index<pool.length;index++) {
+        const particle = pool[index];
+        const elapsed = seconds - particle.start;
+        if (!particle.life || elapsed >= particle.life || reducedMotion.matches) {
+          particle.life=0;
+          target.setMatrixAt(index,hiddenMatrix);
+          continue;
+        }
+        const progress = Math.max(0,elapsed) / particle.life;
+        placement.position.copy(particle.origin).addScaledVector(particle.velocity,elapsed);
+        if (particle.kind==='water') placement.position.y -= elapsed*elapsed*.8;
+        else placement.position.y -= elapsed*elapsed*.3;
+        const scale = particle.size * Math.sin(Math.PI * Math.min(.98,progress+.02));
+        placement.scale.set(scale,scale*(particle.kind==='water'?1.6:1),scale);
+        placement.rotation.set(0,0,particle.kind==='heart'?Math.sin(elapsed*2)*.12:elapsed*2);
+        placement.updateMatrix();
+        target.setMatrixAt(index,placement.matrix);
+      }
+      target.instanceMatrix.needsUpdate = true;
+    }
+
     function resize(width, height) {
       width = Math.max(1, width || canvas.clientWidth);
       height = Math.max(1, height || canvas.clientHeight);
       const aspect = width / height;
-      const vertical = Math.max(7.8, 8.35 / aspect);
+      const vertical = Math.max(7.5, 12.2 / aspect);
       const horizontal = vertical * aspect;
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
       camera.top = vertical / 2;
       camera.bottom = -vertical / 2;
-      camera.position.set(.54, height < 360 ? 11.8 : 9.5, 12.8);
-      camera.lookAt(0, .56, -.22);
+      camera.position.set(.3, height < 360 ? 10.5 : 9.7, 12.8);
+      camera.lookAt(0, .57, -.12);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
       renderer.setSize(width, height, false);
     }
     function update(seconds) {
+      if (!Number.isFinite(seconds)) seconds = lastSeconds;
+      if (seconds < lastSeconds) {
+        for (const particle of [...particles,...hearts]) particle.life = 0;
+      }
+      lastSeconds = seconds;
+      const animatedSeconds = reducedMotion.matches ? 0 : seconds;
+      updateParticles(particles,particleMesh,animatedSeconds);
+      updateParticles(hearts,heartMesh,animatedSeconds);
+      ripples.forEach((ripple,index) => {
+        const cycle = (animatedSeconds * .35 + index * .5) % 1;
+        ripple.scale.setScalar(.07 + cycle * .34);
+      });
+      fluttering.forEach(({butterfly,wings},index) => {
+        const theta = animatedSeconds * (.48 + index * .07) + index * 2.1;
+        butterfly.position.set(-4.85 + Math.cos(theta) * .53, .8 + index*.11 + Math.sin(theta*2)*.15, -.75 + Math.sin(theta)*.59);
+        butterfly.rotation.y = -theta;
+        for (const {wing,side} of wings) wing.rotation.y = side * Math.sin(animatedSeconds * 13 + index) * .65;
+      });
+      lanternGroup.rotation.y = Math.sin(animatedSeconds*.65)*.003;
       for (let i = 0; i < clouds.length; i++) {
-        clouds[i].cloud.position.x = clouds[i].x + Math.sin(seconds * .13 + i * 1.9) * .58;
+        clouds[i].cloud.position.x = clouds[i].x + Math.sin(animatedSeconds * .13 + i * 1.9) * .58;
       }
     }
     resize(canvas.clientWidth, canvas.clientHeight);
     return {
-      renderer, scene, camera, plots, vase, update, resize,
-      avatarSpot: new T.Vector3(-3.17, 0, 1.52),
-      rabbitSpot: new T.Vector3(-3.37, 0, 3.18),
-      squirrelSpot: new T.Vector3(3.45, 0, 2.6),
-      ladybugSpot: new T.Vector3(-2.36, .32, 4.3),
+      renderer, scene, camera, plots, vase, update, resize, setDecor, setArea, celebrate,
+      avatarSpot: new T.Vector3(-4.25, 0, 1.5),
+      rabbitSpot: new T.Vector3(-4.37, 0, 3.1),
+      squirrelSpot: new T.Vector3(4.45, 0, 2.2),
+      ladybugSpot: new T.Vector3(-2.65, .32, 2.6),
       birdSpot: new T.Vector3(3.36, 1.17, -3.05),
     };
   }

@@ -1,0 +1,98 @@
+dialog.wardrobe-studio {
+  width: min(1060px, calc(100vw - 28px));
+  height: min(720px, calc(100dvh - 26px));
+  max-width: none;
+  max-height: calc(100dvh - 26px);
+  padding: 0;
+  border: 2px solid #fdf7e5;
+  border-radius: 26px;
+  overflow: hidden;
+  background: #faf1da;
+}
+.wardrobe-studio .studio-header {
+  display: flex; align-items: center; gap: 14px;
+  min-height: 72px; padding: 12px 20px;
+  background: #fff9e9; border-bottom: 1px solid #ded8bc;
+}
+.wardrobe-studio h2 { font-size: clamp(21px, 2.8vw, 30px); letter-spacing: -.035em; line-height: 1.12; }
+.wardrobe-studio .studio-subtitle { margin-top: 4px; font-size: 14px; color: #677550; }
+.wardrobe-studio .studio-coins {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 7px 13px; border: 1px solid #ded19b; border-radius: 22px; margin-left: auto;
+  font-size: 20px; color: #766023; background: #fff3bb; white-space: nowrap;
+}
+.wardrobe-studio .studio-header form { margin: 0; }
+.wardrobe-studio .studio-header button { width: 44px; min-height: 44px; font-size: 27px; border-radius: 50%; }
+.wardrobe-studio .studio-body { display: grid; grid-template-columns: minmax(240px, 43%) minmax(0, 1fr); height: calc(100% - 80px); min-height: 0; }
+.wardrobe-studio .studio-preview {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, #f5f3d9 0%, #dcebc6 47%, #bcd6ac 100%);
+  border-right: 1px solid #d6d5ad;
+}
+.wardrobe-studio canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.wardrobe-studio .studio-fallback { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 100px; }
+.wardrobe-studio .studio-preview-label {
+  position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+  border: 1px solid #fffaf0; background: #fff8e5d9; border-radius: 20px;
+  padding: 5px 12px; font-size: 13px; font-weight: 800; white-space: nowrap;
+}
+.wardrobe-studio .studio-sparkle { position: absolute; pointer-events: none; color: #fdfbea; font-size: 43px; text-shadow: 0 1px 8px #b7ac7560; }
+.wardrobe-studio .studio-sparkle-one { top: 19%; left: 13%; }
+.wardrobe-studio .studio-sparkle-two { top: 37%; right: 12%; font-size: 30px; }
+.wardrobe-studio .studio-turn { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 52px; }
+.wardrobe-studio .studio-turn button { width: 46px; min-height: 46px; font-size: 25px; border-radius: 50%; background: #fff9e6ed; }
+.wardrobe-studio .studio-catalog { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; padding: 14px; gap: 10px; }
+.wardrobe-studio .studio-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.wardrobe-studio .studio-tabs button { min-height: 56px; font-size: 13px; font-weight: 800; padding: 4px; }
+.wardrobe-studio .studio-tabs button span { display: block; font-size: 21px; line-height: 1.1; }
+.wardrobe-studio .studio-tabs button[aria-pressed="true"] { background: #deebc8; border-color: #68824a; box-shadow: inset 0 -3px #b5cc94; }
+.wardrobe-studio .studio-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wardrobe-studio .studio-section-heading h3 { margin: 0; font-size: 16px; }
+.wardrobe-studio .studio-owned { font-size: 12px; color: #64724d; }
+.wardrobe-studio .studio-choices { overflow: auto; overscroll-behavior: contain; display: grid; align-content: start; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 3px 6px; }
+.wardrobe-studio .studio-item { display: grid; grid-template-rows: 48px auto auto; align-items: center; gap: 3px; min-height: 100px; padding: 7px 4px; border-radius: 15px; }
+.wardrobe-studio .studio-item-art {
+  display: grid; place-items: center; justify-self: center; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--item-tint); box-shadow: inset 0 1px 0 #ffffff80, 0 2px 4px #77622f15; font-size: 29px;
+}
+.wardrobe-studio .studio-item-name { font-weight: 800; font-size: 12px; line-height: 1.15; }
+.wardrobe-studio .studio-item-status { font-size: 11px; color: #62734d; font-weight: 700; }
+.wardrobe-studio .studio-item.is-locked { border-style: dashed; background: #fffaf0; }
+.wardrobe-studio .studio-item.is-locked .studio-item-status { color: #8a6c2b; }
+.wardrobe-studio .studio-item[aria-pressed="true"] { border: 2px solid #71884d; background: #e9f0d6; padding: 6px 3px; }
+.wardrobe-studio .studio-purchase { display: grid; gap: 6px; border-top: 1px solid #ded8bc; padding-top: 8px; }
+.wardrobe-studio .studio-feedback { min-height: 30px; align-content: center; font-size: 13px; line-height: 1.25; text-align: center; }
+.wardrobe-studio .studio-buy { min-height: 48px; padding: 7px 10px; background: #476d43; color: white; border-color: #355b34; font-size: 14px; font-weight: 800; }
+.wardrobe-studio .studio-buy:disabled { opacity: .7; }
+@media (max-height: 540px) and (orientation: landscape) {
+  dialog.wardrobe-studio { width: calc(100vw - 18px); height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); border-radius: 18px; }
+  .wardrobe-studio .studio-header { min-height: 52px; padding: 5px 12px; gap: 8px; }
+  .wardrobe-studio .studio-header h2 { font-size: 21px; }
+  .wardrobe-studio .studio-subtitle { display: none; }
+  .wardrobe-studio .studio-body { height: calc(100% - 55px); grid-template-columns: minmax(200px, 38%) minmax(0, 1fr); }
+  .wardrobe-studio .studio-catalog { padding: 7px; gap: 5px; }
+  .wardrobe-studio .studio-tabs button { min-height: 44px; font-size: 12px; }
+  .wardrobe-studio .studio-tabs button span { display: inline; font-size: 16px; margin-right: 3px; }
+  .wardrobe-studio .studio-choices { gap: 5px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .wardrobe-studio .studio-item { min-height: 80px; grid-template-rows: 30px auto auto; padding: 4px; }
+  .wardrobe-studio .studio-item-art { width: 31px; height: 31px; font-size: 20px; }
+  .wardrobe-studio .studio-item-name { font-size: 10px; }
+  .wardrobe-studio .studio-item-status { font-size: 10px; }
+  .wardrobe-studio .studio-purchase { padding-top: 4px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .wardrobe-studio .studio-feedback { font-size: 11px; min-height: 24px; }
+  .wardrobe-studio .studio-buy { font-size: 11px; min-height: 44px; max-width: 190px; padding: 5px 8px; }
+  .wardrobe-studio .studio-turn { gap: 65px; bottom: 5px; }
+  .wardrobe-studio .studio-turn button { width: 44px; min-height: 44px; font-size: 22px; }
+  .wardrobe-studio .studio-preview-label { top: 8px; font-size: 11px; }
+}
+@media (orientation: portrait) {
+  dialog.wardrobe-studio { height: min(760px, calc(100dvh - 20px)); }
+  .wardrobe-studio .studio-header { padding: 8px 12px; gap: 8px; }
+  .wardrobe-studio .studio-subtitle { display: none; }
+  .wardrobe-studio .studio-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(180px, 40%) minmax(0, 1fr); height: calc(100% - 67px); }
+  .wardrobe-studio .studio-preview { border-right: 0; border-bottom: 1px solid #d6d5ad; }
+  .wardrobe-studio .studio-turn { justify-content: space-between; padding: 0 16px; }
+  .wardrobe-studio .studio-catalog { padding: 9px; gap: 5px; }
+  .wardrobe-studio .studio-tabs button { min-height: 44px; }
+  .wardrobe-studio .studio-tabs button span { display: inline; font-size: 16px; margin-right: 3px; }
+}

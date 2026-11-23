@@ -14,7 +14,24 @@
   const outfitColors = {
     pink: [0xda5688, 0xfb88ad, 0xa63569, 0xffe9a3],
     mint: [0x55a993, 0x81ccad, 0x348675, 0xffedb8],
-    lilac: [0x8772bd, 0xb59bdf, 0x6f529d, 0xffeeb6]
+    lilac: [0x8772bd, 0xb59bdf, 0x6f529d, 0xffeeb6],
+    peach: [0xf2a37e, 0xffc39a, 0xcc775a, 0xffefd0],
+    sky: [0x62aeda, 0xa0d9f0, 0x3f80b1, 0xffdf83],
+    rose: [0xcf4674, 0xf38fab, 0x9c315b, 0xfaf0cd],
+    lemon: [0xe2bd43, 0xffdf79, 0xb38d28, 0xffffff],
+    berry: [0xa84b8e, 0xd88fc3, 0x75346e, 0xffd5df],
+    meadow: [0x6b9b55, 0xa9cb83, 0x46733e, 0xfde8a0],
+    ocean: [0x388eae, 0x77bfd0, 0x24647c, 0xd7f0e7],
+    coral: [0xe3746b, 0xffaaa0, 0xb04e55, 0xffe6c4],
+    plum: [0x77518e, 0xa685b6, 0x583a72, 0xf7dce8],
+    sunflower: [0xe7ac32, 0xffd15c, 0xad7821, 0x79482b],
+    strawberry: [0xd95569, 0xf38f9e, 0x9e3552, 0x7aab5b],
+    rainbow: [0x6aa6cd, 0x9acadd, 0x4e7a9d, 0xffd277],
+    daisy: [0xf1e8c8, 0xfff9df, 0xb7aa80, 0xedb637],
+    denim: [0x4c7ea5, 0x7fa6c2, 0x315c7c, 0xd8a65c],
+    lavender: [0xa887c5, 0xcbb1df, 0x79599b, 0xece7b5],
+    buttercup: [0xc4ad45, 0xe8d47b, 0x8e7d29, 0xffffff],
+    woodland: [0x987251, 0xc09c77, 0x6a4d36, 0xb8d08b]
   };
   const skin = 0xf2ac7e;
   const skinLight = 0xffbf94;
@@ -91,7 +108,115 @@
     round(parts, center, [x, y, z + radius * .19], [radius * .49, radius * .49, radius * .27]);
   }
 
+  const hatTints = {
+    bow: 0xe885aa, bee: 0xf2c34f, sunflower: 0xf1c443, strawberry: 0xdf667a,
+    rainbow: 0x91c8df, bunny: 0xe8d6cc, kitty: 0xc3a8c7, beret: 0xa477b7,
+    cap: 0x76aeb9, daisy: 0xf5edcf, leaf: 0x8fb56c, crown: 0xefce66,
+    moon: 0x7088bb, mushroom: 0xe38c7a, butterfly: 0xc792cd, pom: 0xb0c6dc,
+    bonnet: 0xf3c2ca
+  };
+
+  function hatBand(parts, tint, radius = .23) {
+    place(parts, new T.TorusGeometry(radius, .023, 7, 28), tint,
+      [0, 1.345, -.02], [1, .91, 1], [Math.PI / 2, 0, 0], true);
+  }
+
+  function themedHat(parts, style, accent) {
+    const tint = hatTints[style] || accent;
+    if (['bow', 'leaf', 'crown', 'butterfly'].includes(style)) {
+      hatBand(parts, tint);
+      if (style === 'bow') {
+        round(parts, tint, [-.14, 1.407, .155], [.091, .052, .026], [0, -.25, -.42]);
+        round(parts, tint, [-.27, 1.397, .1], [.084, .052, .03], [0, -.45, .45]);
+        round(parts, 0xf8b5c7, [-.204, 1.397, .149], [.033, .037, .03]);
+      } else if (style === 'crown') {
+        for (let i = 0; i < 5; i++) {
+          const x = (i - 2) * .071;
+          place(parts, new T.ConeGeometry(.04, .12, 5), tint,
+            [x, 1.425 - Math.abs(i - 2) * .013, .155], [1, 1, .5], [], true);
+          round(parts, [0xe68eae, 0x7bb8c9, 0xc39ade][i % 3], [x, 1.456 - Math.abs(i - 2) * .014, .175], [.015, .018, .009]);
+        }
+      } else if (style === 'leaf') {
+        for (let i = 0; i < 5; i++) {
+          round(parts, i % 2 ? 0xa2c878 : 0x719e53, [(i - 2) * .065, 1.39 + Math.sin(i) * .018, .171],
+            [.052, .025, .014], [0, 0, (i % 2 ? 1 : -1) * .55]);
+        }
+      } else {
+        const x = -.17, y = 1.421, z = .17;
+        for (const side of [-1, 1]) {
+          round(parts, 0xca89cc, [x + side * .049, y + .027, z], [.049, .063, .012], [0, 0, side * -.45]);
+          round(parts, 0xf3bad8, [x + side * .04, y - .029, z], [.039, .039, .012], [0, 0, side * .45]);
+        }
+        round(parts, 0x77517a, [x, y, z + .013], [.012, .056, .012]);
+      }
+      return;
+    }
+    if (style === 'beret') {
+      round(parts, tint, [0, 1.414, -.035], [.294, .11, .232], [0, 0, -.14]);
+      round(parts, 0x80559a, [.045, 1.52, -.035], [.018, .027, .018]);
+      hatBand(parts, 0x80559a);
+      return;
+    }
+    const cap = ['bee', 'bunny', 'kitty', 'cap', 'moon', 'pom'].includes(style);
+    round(parts, tint, [0, cap ? 1.39 : 1.421, -.025], [cap ? .255 : .283, cap ? .16 : .144, .223]);
+    if (!['bunny', 'kitty', 'pom'].includes(style)) {
+      round(parts, tint, [0, 1.321, cap ? .153 : -.023], [cap ? .22 : .35, .024, cap ? .145 : .29]);
+    }
+    hatBand(parts, style === 'moon' ? 0xffdfa0 : accent);
+    if (style === 'bee') {
+      for (const x of [-.093, 0, .093]) {
+        line(parts, 0x66503d, [[x, 1.38, .189], [x, 1.45, .185], [x, 1.513, .1]], .012);
+      }
+      for (const side of [-1, 1]) {
+        line(parts, 0x66503d, [[side * .12, 1.51, 0], [side * .16, 1.65, -.01]], .008);
+        round(parts, 0x66503d, [side * .16, 1.651, -.01], [.022, .023, .022]);
+      }
+    } else if (style === 'bunny') {
+      for (const side of [-1, 1]) {
+        round(parts, tint, [side * .11, 1.64, -.032], [.062, .18, .047], [0, 0, side * -.14]);
+        round(parts, 0xf3b6c2, [side * .11, 1.649, .006], [.031, .124, .012], [0, 0, side * -.14]);
+      }
+    } else if (style === 'kitty') {
+      for (const side of [-1, 1]) {
+        place(parts, new T.ConeGeometry(.083, .16, 3), tint, [side * .18, 1.558, -.031], [1, 1, .72], [0, side * .1, side * -.2], true);
+        place(parts, new T.ConeGeometry(.044, .085, 3), 0xe7bad1, [side * .18, 1.555, .017], [1, 1, .2], [0, 0, side * -.2], true);
+      }
+    } else if (style === 'pom') {
+      round(parts, 0xf0e8de, [0, 1.584, -.036], [.078, .073, .07]);
+      for (let i = 0; i < 7; i++) round(parts, 0xffffff, [Math.cos(i) * .05, 1.59 + Math.sin(i) * .04, -.005], [.023, .025, .025]);
+    } else if (style === 'moon') {
+      round(parts, 0xffdf8f, [-.12, 1.407, .18], [.047, .051, .013]);
+      round(parts, tint, [-.098, 1.423, .192], [.039, .041, .013]);
+    } else if (style === 'strawberry') {
+      for (const x of [-.1, 0, .1]) {
+        for (const y of [1.38, 1.46]) round(parts, 0xffe69c, [x, y, .184 - Math.abs(x) * .22], [.008, .015, .005]);
+      }
+      for (let i = 0; i < 5; i++) round(parts, 0x79a355, [Math.cos(i * 1.26) * .065, 1.56, -.025 + Math.sin(i * 1.26) * .057], [.073, .014, .029], [0, i * 1.26, .2]);
+    } else if (style === 'mushroom') {
+      for (const [x, y, z] of [[-.13, 1.48, .14], [.1, 1.52, .11], [.2, 1.409, .112], [-.04, 1.552, .08]]) {
+        round(parts, 0xffedcd, [x, y, z], [.036, .016, .026], [.3, 0, 0]);
+      }
+    } else if (style === 'rainbow') {
+      const colors = [0xef94ac, 0xf2c474, 0xc1d481, 0x7cb5d7];
+      colors.forEach((color, index) => {
+        place(parts, new T.TorusGeometry(.071 - index * .012, .009, 6, 15, Math.PI), color, [-.09, 1.407, .207], [1, 1, 1], [], true);
+      });
+    } else if (style === 'sunflower' || style === 'daisy') {
+      flower(parts, -.15, 1.42, .168, .054, style === 'daisy' ? 0xfff8db : 0xffd154, style === 'daisy' ? 0xf1bb3b : 0x8e562c);
+    } else if (style === 'bonnet') {
+      for (let i = 0; i < 11; i++) {
+        const angle = Math.PI * i / 10;
+        round(parts, 0xffe5e3, [Math.cos(angle) * .259, 1.34 + Math.sin(angle) * .19, .157], [.034, .03, .035]);
+      }
+      line(parts, tint, [[-.21, 1.31, .1], [-.16, 1.026, .181], [0, .96, .19], [.14, 1.05, .17], [.2, 1.3, .1]], .012);
+    }
+  }
+
   function buildHat(parts, style, accent) {
+    if (style !== 'straw' && style !== 'flower') {
+      themedHat(parts, style, accent);
+      return;
+    }
     const straw = style === 'straw';
     const base = straw ? 0xe3b161 : 0xf6aecc;
     const brim = straw ? 0xf2ca7e : 0xf7cade;
@@ -146,7 +271,50 @@
       round(body, accent, [x * .92, .649, .153], [.02, .02, .009]);
       round(body, skin, [side * .017, .847, 0], [.054, .076, .064]);
     }
-    flower(body, 0, .506, .146, .021, 0xfff1e6, 0xf9c951);
+    const dress = ['peach', 'rose', 'berry', 'daisy', 'lavender', 'buttercup'].includes(outfit);
+    const apron = ['meadow', 'sunflower', 'strawberry', 'woodland'].includes(outfit);
+    if (dress) {
+      const skirt = new T.CylinderGeometry(.162, .265, .252, 24, 1, false);
+      place(body, skirt, fabric, [0, .351, .005], [1, 1, .69], [], true);
+      place(body, new T.TorusGeometry(.259, .014, 6, 28), fabricLight,
+        [0, .231, .005], [1, .69, 1], [Math.PI / 2, 0, 0], true);
+      for (const side of [-1, 1]) round(body, fabricLight, [side * .135, .455, .137], [.05, .023, .018], [0, 0, side * .35]);
+    }
+    if (apron) {
+      place(body, new T.CylinderGeometry(.136, .204, .26, 16), fabricLight,
+        [0, .382, .043], [1, 1, .61], [], true);
+      round(body, accent, [0, .376, .168], [.071, .045, .009]);
+      line(body, seam, [[-.068, .393, .175], [-.061, .349, .181], [.06, .349, .181], [.068, .393, .175]], .004);
+    }
+    if (outfit === 'sky' || outfit === 'denim') {
+      for (const side of [-1, 1]) {
+        line(body, fabricLight, [[side * .142, .34, .077], [side * .148, .27, .081], [side * .143, .22, .079]], .006);
+        round(body, accent, [side * .15, .47, .085], [.012, .012, .008]);
+      }
+    }
+    if (outfit === 'rainbow') {
+      for (const [index, color] of [0xec8baa, 0xf4c86c, 0x9fbd72, 0x8ca5d1].entries()) {
+        line(body, color, [[-.115, .69 - index * .027, .128], [0, .68 - index * .027, .148], [.115, .69 - index * .027, .128]], .012);
+      }
+    } else if (outfit === 'strawberry') {
+      for (const x of [-.07, .07]) {
+        round(body, 0xe35a6e, [x, .536, .155], [.029, .034, .012]);
+        round(body, 0x68a254, [x, .569, .158], [.028, .009, .012], [0, 0, -.2]);
+        round(body, 0xffe58d, [x, .533, .17], [.004, .006, .003]);
+      }
+    } else if (outfit === 'sunflower') {
+      flower(body, 0, .55, .158, .037, 0xffd445, 0x81512e);
+    } else if (outfit === 'rose' || outfit === 'berry') {
+      for (const x of [-.12, 0, .12]) {
+        flower(body, x, .31 + Math.abs(x) * .23, .17 - Math.abs(x) * .1, .019, 0xffdbdf, 0xffe294);
+      }
+      flower(body, -.075, .63, .15, .024, 0xffdbe1, 0xffd36d);
+    } else if (outfit === 'woodland') {
+      round(body, 0x7ba159, [0, .574, .16], [.045, .02, .012], [0, 0, -.55]);
+      line(body, 0xe8d0a0, [[-.02, .544, .174], [0, .563, .174], [.025, .594, .174]], .004);
+    } else {
+      flower(body, 0, .506, .146, .021, 0xfff1e6, 0xf9c951);
+    }
 
     // Soft cheeks, ears and curls are layered around the head.
     round(body, hairDeep, [0, 1.14, -.094], [.256, .276, .207]);

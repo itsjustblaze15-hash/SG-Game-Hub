@@ -3,7 +3,7 @@ const games = [
     "id": "little-garden",
     "name": "Little Garden",
     "subtitle": "3D · COZY GARDEN",
-    "description": "Dress up your gardener, grow six kinds of flowers, meet five little visitors, and try garden-themed math and spelling puzzles.",
+    "description": "Grow and sell 24 flowers, collect 50 animal friends, dress up with 40 clothes and hats, and explore a cozy garden with math and spelling puzzles. Play sideways on iPhone and iPad.",
     "cover": "assets/little-garden.jpg",
     "macSupported": false,
     "iPhoneSupported": true,
