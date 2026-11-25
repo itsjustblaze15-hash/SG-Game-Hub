@@ -1,5 +1,65 @@
 const games = [
   {
+    "id": "slice-master",
+    "name": "Slice Master",
+    "subtitle": "2D · FRUIT ARCADE",
+    "description": "Swipe through flying fruit, chain clean cuts and dodge bombs. Play Classic, Timed or Zen and unlock new blades and backdrops.",
+    "orientation": "landscape",
+    "cover": "assets/slice-master.png",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "mobileExclusive": true,
+    "play": "games/slice-master/index.html"
+  },
+  {
+    "id": "highway-rush",
+    "name": "Highway Rush",
+    "subtitle": "2D · TRAFFIC RACER",
+    "description": "Change lanes, dodge traffic and collect gold on five highways. Tune and paint cars in the garage, then take on the daily challenge.",
+    "orientation": "portrait",
+    "cover": "assets/highway-rush.png",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "mobileExclusive": true,
+    "play": "games/highway-rush/index.html"
+  },
+  {
+    "id": "color-switch",
+    "name": "Color Switch",
+    "subtitle": "2D · NEON ARCADE",
+    "description": "Tap to climb, lean left or right, and pass through matching neon gates. Collect prisms and diamonds in Endless, Level or Challenge mode.",
+    "orientation": "portrait",
+    "cover": "assets/color-switch.png",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "mobileExclusive": true,
+    "play": "games/color-switch/index.html"
+  },
+  {
+    "id": "hole-city",
+    "name": "Hole City",
+    "subtitle": "2D · CITY SANDBOX",
+    "description": "Drag a purple vortex through five miniature cities. Eat street clutter, grow large enough to swallow the skyline and unlock vortex skins.",
+    "orientation": "landscape",
+    "cover": "assets/hole-city.png",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "mobileExclusive": true,
+    "play": "games/hole-city/index.html"
+  },
+  {
+    "id": "burger-rush",
+    "name": "Burger Rush",
+    "subtitle": "2D · RESTAURANT ARCADE",
+    "description": "Read order tickets, work the grill and serve burgers with sides. Earn tips, upgrade your restaurant and unlock new locations.",
+    "orientation": "landscape",
+    "cover": "assets/burger-rush.png",
+    "macSupported": false,
+    "iPhoneSupported": true,
+    "mobileExclusive": true,
+    "play": "games/burger-rush/index.html"
+  },
+  {
     "id": "little-garden",
     "name": "Little Garden",
     "subtitle": "3D · COZY GARDEN",

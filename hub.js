@@ -19,6 +19,10 @@ const phoneLayout = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-
 const refreshHub = document.querySelector('#refresh-hub');
 const isAppleMobile = /iPhone|iPad/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const mobileCategory = document.querySelector('#mobile-category');
+const mobileOffline = document.querySelector('#mobile-offline-status');
+let mobileOnly = false;
+const isNewArcadeDevice = window.SGAppleMobile();
 
 function reloadHub(build) {
   const url = new URL(location.href);
@@ -165,7 +169,11 @@ function closeGame() {
 
 function syncPlayerOrientation() {
   if (!playingGame) return;
-  const needsRotation = !portraitGames.has(playingGame.id) && portraitPhone.matches;
+  const wantsPortrait = playingGame.mobileExclusive
+    ? playingGame.orientation === 'portrait' : portraitGames.has(playingGame.id);
+  const needsRotation = !wantsPortrait && portraitPhone.matches;
+  if (needsRotation && playingGame.mobileExclusive)
+    playerFrame.firstElementChild?.contentWindow?.postMessage({type: 'sg-mobile-pause'}, location.origin);
   rotatePrompt.hidden = !needsRotation;
   playerFrame.classList.toggle('waiting-for-landscape', needsRotation);
   playerFrame.inert = needsRotation;
@@ -187,6 +195,7 @@ portraitPhone.addEventListener('change', syncPlayerOrientation);
 
 function canPlay(game) {
   if (!game?.play) return false;
+  if (game.mobileExclusive) return isNewArcadeDevice;
   if (game.id !== 'little-garden') return true;
   return isAppleMobile;
 }
@@ -200,6 +209,7 @@ function startGame(game) {
   player.hidden = false;
   document.body.classList.add('playing');
   sizePlayerToScreen();
+  player.classList.toggle('arcade-player', !!game.mobileExclusive);
   if (history.state?.sgHub) history.replaceState({ sgHub: true, sgPlayer: true }, '');
   else history.pushState({ sgHub: true, sgPlayer: true }, '');
   exitGame.focus({ preventScroll: true });
@@ -211,6 +221,11 @@ exitGame.addEventListener('click', () => {
 
 });
 window.addEventListener('popstate', closeGame);
+window.addEventListener('message', event => {
+  if (!playingGame?.mobileExclusive || event.origin !== location.origin ||
+      event.source !== playerFrame.firstElementChild?.contentWindow) return;
+  if (event.data?.type === 'sg-mobile-exit') closeGame();
+});
 
 function loadOrder() {
   const currentIds = games.map(game => game.id);
@@ -312,15 +327,19 @@ function openGame(game) {
   selectedGame = game;
   launcher = document.activeElement;
   document.querySelector('#game-cover').src = game.cover;
+  dialog.classList.toggle('mobile-details', !!game.mobileExclusive);
   document.querySelector('#game-title').textContent = game.name;
   document.querySelector('#game-genre').textContent = game.subtitle;
   document.querySelector('#game-description').textContent = game.description;
   document.querySelector('#game-devices').replaceChildren(devices(game));
   const playable = canPlay(game);
-  play.hidden = !playable;
+  play.hidden = !playable && !game.mobileExclusive;
+  play.disabled = !playable;
+  play.textContent = !playable && game.mobileExclusive ? 'Mobile Exclusive' : 'Play now';
   const availability = document.querySelector('#availability');
   availability.hidden = playable;
-  availability.textContent = game.id === 'little-garden'
+  availability.textContent = game.mobileExclusive ? 'Exclusively available on iPhone and iPad.'
+    : game.id === 'little-garden'
     ? 'Playable on iPhone and iPad.'
     : 'Playable in SG on Mac.';
   dialog.showModal();
@@ -328,7 +347,7 @@ function openGame(game) {
 
 function gameCard(game) {
   const tile = document.createElement('div');
-  tile.className = 'game-tile';
+  tile.className = 'game-tile' + (game.mobileExclusive ? ' mobile-exclusive' : '');
   tile.dataset.game = game.id;
   const card = document.createElement('button');
   card.type = 'button';
@@ -346,7 +365,14 @@ function gameCard(game) {
   const name = document.createElement('span');
   name.className = 'game-name';
   name.textContent = game.name;
-  copy.append(name, devices(game));
+  copy.append(name);
+  if (game.mobileExclusive) {
+    const badge = document.createElement('span');
+    badge.className = 'exclusive-badge';
+    badge.textContent = 'Mobile Exclusive';
+    copy.append(badge);
+  }
+  copy.append(devices(game));
   card.append(cover, copy);
   tile.append(card);
   if (editing) tile.append(moveControls(game, order.indexOf(game.id)));
@@ -356,7 +382,7 @@ function gameCard(game) {
 function render() {
   const query = search.value.trim().toLocaleLowerCase();
   const results = order.map(id => games.find(game => game.id === id))
-    .filter(game => game.name.toLocaleLowerCase().includes(query));
+    .filter(game => (!mobileOnly || game.mobileExclusive) && game.name.toLocaleLowerCase().includes(query));
   count.textContent = results.length;
   empty.hidden = results.length !== 0;
   grid.replaceChildren(...results.map(gameCard));
@@ -374,10 +400,30 @@ reorder.addEventListener('click', () => {
   reorder.textContent = editing ? 'Done' : 'Reorder';
   reorderHelp.hidden = !editing;
   search.disabled = editing;
-  if (editing) search.value = '';
+  mobileCategory.disabled = editing;
+  if (editing) {
+    search.value = '';
+    mobileOnly = false;
+    document.querySelector('.library-heading h1').firstChild.textContent = 'All games ';
+    mobileCategory.setAttribute('aria-pressed', 'false');
+    mobileOffline.hidden = true;
+  }
   render();
 });
 search.addEventListener('input', render);
+mobileCategory.addEventListener('click', () => {
+  mobileOnly = !mobileOnly;
+  mobileCategory.setAttribute('aria-pressed', String(mobileOnly));
+  document.querySelector('.library-heading h1').firstChild.textContent = mobileOnly ? 'Mobile Exclusive ' : 'All games ';
+  mobileOffline.hidden = !mobileOnly || !isNewArcadeDevice;
+  render();
+});
+if ('serviceWorker' in navigator) {
+  mobileOffline.textContent = 'Preparing offline play…';
+  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+    mobileOffline.textContent = 'Ready for offline play';
+  }).catch(() => { mobileOffline.textContent = 'Offline setup unavailable'; });
+} else mobileOffline.textContent = 'Play offline in the installed SG app';
 dialog.addEventListener('click', event => {
   if (event.target === dialog) dialog.close();
 });
