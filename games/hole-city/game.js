@@ -1,194 +1,405 @@
 'use strict';
 (() => {
-const {mount,clamp,lerp,rnd,tau,ellipse,box,polygon,gradient,label,particleKit}=SGArcade;
+const {mount,clamp,lerp,tau,ellipse,box,polygon,gradient,label,particleKit}=SGArcade;
 const art=window.SGCityArt;
-const size={w:2180,h:1560,cw:310,ch:254,road:65};
-const maps=[
-  ['Downtown City',0,'#8aa077','#87a97b','#b8b8aa','#586475',34],
-  ['Residential Neighborhood',33,'#8aa258','#a7b767','#d8c3a1','#6a6c73',51],
-  ['Beach Town',61,'#c0ba7b','#aac477','#f1d5ab','#647d90',86],
-  ['Industrial District',95,'#95897e','#a4a088','#b8b19b','#534c5f',77],
-  ['Mega City',125,'#7795a4','#7c9a92','#c0c9d0','#4b506a',119]
-];
-const vortex=[['Plasma','#e260ff',0],['Aquatic','#5af9f0',30],['Solar','#ffbf5b',62],['Ultraviolet','#8692ff',100]];
+const districts=[['Downtown City',0],['Residential Neighborhood',33],['Beach Town',61],['Industrial District',95],['Mega City',125]];
+const skins=[['Plasma','#e260ff',0],['Aquatic','#5af9f0',30],['Solar','#ffbf5b',62],['Ultraviolet','#8692ff',100]];
+const rivalsData=[['Nova','#5ecafa'],['Orbit','#ff9a5e'],['Rift','#9fee6c'],['Echo','#ff75ad'],['Atlas','#ecc66a']];
 const items={
-  trash:[6,0,3],cone:[8,0,5],planter:[11,12,8],bench:[14,17,11],table:[18,21,15],lamp:[17,25,19],
-  tree:[22,30,26],car:[28,42,37],truck:[35,54,55],house:[42,68,84],building:[52,89,136],tower:[64,115,235]
+  trash:[6,0,3,19],cone:[8,0,5,24],planter:[12,16,8,43],bench:[15,22,11,69],
+  table:[19,27,15,108],lamp:[18,29,19,118],tree:[25,34,26,182],car:[30,43,37,272],
+  truck:[40,54,56,371],house:[49,64,84,650],building:[62,84,136,965],
+  tower:[78,108,235,1510],landmark:[108,140,410,2200]
 };
+const big=new Set(['house','building','tower','landmark']);
+const tilt=.72,shear=.22;
 const worldRng=seed=>()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/2**32);
-function makeBg(mapIndex){
-  const canvas=document.createElement('canvas');canvas.width=size.w;canvas.height=size.h;
-  const g=canvas.getContext('2d'),[, ,dirt,grass,walk,road,seed]=maps[mapIndex],rand=worldRng(seed);
-  g.fillStyle=dirt;g.fillRect(0,0,size.w,size.h);
-  g.fillStyle=walk;g.fillRect(0,0,size.w,size.h);
-  for(let x=0;x<size.w;x+=size.cw){g.fillStyle=road;g.fillRect(x,0,size.road,size.h);}
-  for(let y=0;y<size.h;y+=size.ch){g.fillStyle=road;g.fillRect(0,y,size.w,size.road);}
-  g.globalAlpha=.24;g.fillStyle='#222b36';
-  for(let i=0;i<9000;i++){
-    const x=rand()*size.w,y=rand()*size.h;
-    if(x%size.cw<size.road||y%size.ch<size.road)g.fillRect(x,y,1+rand()*2,1);
-  }
-  g.globalAlpha=1;
-  for(let x=0;x<size.w;x+=size.cw)for(let y=0;y<size.h;y+=size.ch){
-    const left=x+size.road+14,top=y+size.road+14,w=size.cw-size.road-28,h=size.ch-size.road-28;
-    box(g,left+2,top+4,w,h,10,'#34364237');
-    box(g,left,top,w,h,10,grass);
-    if(mapIndex===3){box(g,left+7,top+9,w-14,h-18,7,'#8d8b88');}
-    if((x/size.cw+y/size.ch)%3===0){
-      box(g,left+w*.60,top+h*.12,w*.30,h*.71,6,mapIndex===2?'#5ad2db':'#a2bd82');
-      box(g,left+w*.65,top+h*.14,w*.07,h*.66,2,'#ffffff1e');
-    }
-    g.strokeStyle='#8d918f45';g.lineWidth=1;
-    for(let j=0;j<10;j++){g.beginPath();g.moveTo(left+j*w/10,top-13);g.lineTo(left+j*w/10,top-3);g.stroke();}
-    g.fillStyle='#fcebdc';
-    for(let i=0;i<6;i++){
-      g.fillRect(x+8+i*8,y+size.road+4,4,11);g.fillRect(x+size.road+4,y+8+i*8,10,4);
-    }
-    for(let i=0;i<8;i++){
-      g.fillStyle='#e8bc72a0';g.fillRect(x+size.road+22+i*26,y+size.road/2,12,2);
-      g.fillRect(x+size.road/2,y+size.road+19+i*20,2,11);
-    }
-    if(mapIndex===2&&y>=size.ch*5){g.fillStyle='#3ab0b9';g.fillRect(x+size.road+4,y+size.road+4,w+20,h+20);}
-  }
-  return canvas;
+function routeAt(road,fraction){
+  const distance=clamp(fraction,0,.99999)*(road.points.length-1),i=Math.floor(distance);
+  const a=road.points[i],b=road.points[i+1],f=distance-i;
+  return {x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f),angle:Math.atan2(b.y-a.y,b.x-a.x)};
 }
-function generate(mapIndex){
-  const list=[],rand=worldRng(maps[mapIndex][6]*39);
-  const add=(k,x,y,angle=0,moving=0)=>{
-    if(x>size.w-32||y>size.h-25)return;
-    list.push({k,x,y,angle,moving,home:x,variant:Math.floor(rand()*6),r:items[k][0]*(.9+rand()*.22),fall:0,skip:false});
+function generate(world,index){
+  const props=[],cars=[],rand=worldRng(11389+index*40271);
+  const add=(k,x,y,scale=1,variant=Math.floor(rand()*6),angle=0)=>{
+    if(x<13||y<13||x>world.w-13||y>world.h-13||!world.isLand(x,y))return null;
+    const p={k,x,y,r:items[k][0]*scale,scale,variant,angle,fall:0,owner:null,skip:false};
+    props.push(p);return p;
   };
-  for(let col=0;col<7;col++)for(let row=0;row<6;row++){
-    const x=col*size.cw,y=row*size.ch,plot=col*13+row;
-    if(plot%4!==0||col===0&&row===0){
-      add(plot%8===3||mapIndex===4&&plot%3===0?'tower':plot%3===0&&mapIndex!==1?'building':'house',x+172,y+158);
-    }else add('table',x+184,y+156);
-    add('bench',x+100,y+105);add('planter',x+113,y+219);
-    add('table',x+239,y+111);add('tree',x+247,y+212);add('tree',x+86,y+166);add('lamp',x+290,y+77);
-    add('car',x+110,y+24,0,plot%2?15:0);add(plot%2?'car':'truck',x+242,y+43,Math.PI,plot%3?-12:0);
-    if(plot%3===1)add('car',x+43,y+178,Math.PI/2);
-    for(let i=0;i<7;i++)add(i%5===0?'cone':'trash',x+75+(i*44)%226+rand()*10,y+(i%2?226:79)+rand()*10);
+  const skyline=index===0||index===4?world.plots
+    .filter(p=>p.r>=74&&p.zone!=='park'&&Math.hypot(p.x-world.spawn.x,p.y-world.spawn.y)>205)
+    .sort((a,b)=>Math.hypot(a.x-world.spawn.x-265,a.y-world.spawn.y-126)-Math.hypot(b.x-world.spawn.x-265,b.y-world.spawn.y-126))[0]:null;
+  for(const [i,plot] of world.plots.entries()){
+    const {x,y,r,zone}=plot;
+    const type=plot===skyline?'landmark':zone==='downtown'?(i%6===0&&r>93?'landmark':i%3===0?'tower':'building')
+      :zone==='homes'?'house':zone==='industrial'?(i%4===0?'tower':'building')
+      :zone==='market'?(i%3===0?'building':'table'):zone==='harbor'?(i%4===0?'building':'truck'):'tree';
+    const scale=type==='landmark'?clamp(r/96,.91,1.23):clamp(r/(items[type][0]*1.12),.67,1.18);
+    add(type,x,y,scale,i%6);
+    const scatter=r*.67+10;
+    for(let j=0;j<4;j++){
+      const d=j*tau/4+i*.14,px=x+Math.cos(d)*scatter,py=y+Math.sin(d)*scatter;
+      const kinds=zone==='park'?['trash','planter','tree','bench','lamp','table']:['trash','cone','bench','planter','lamp','tree'];
+      const kind=kinds[(i+j*2)%kinds.length];
+      add(kind,px,py,.88+rand()*.28,i%6);
+    }
+    for(let j=0;j<3;j++){
+      const angle=rand()*tau,d=r*(.4+rand()*.67);
+      add(j===2?'cone':'trash',x+Math.cos(angle)*d,y+Math.sin(angle)*d,.85+rand()*.22,i%6);
+    }
   }
-  // Closely spaced street litter gives every district an easy first growth route.
-  for(let i=0;i<12;i++)add(i%4?'trash':'cone',83+i*17,83+Math.sin(i*.57)*12);
-  return list;
+  for(const [i,road] of world.roads.entries()){
+    if(road.points.length<8)continue;
+    const count=Math.min(4,Math.ceil(road.points.length/30));
+    for(let j=0;j<count;j++){
+      const fraction=(j+rand()*.55+.22)/count;
+      const p=routeAt(road,fraction);
+      const dir=j%2?-1:1,offset=road.width*.21*dir;
+      const car=add(i%5===0?'truck':'car',p.x-Math.sin(p.angle)*offset,p.y+Math.cos(p.angle)*offset,.78+rand()*.29,i%6,dir>0?p.angle:p.angle+Math.PI);
+      if(car){car.road=road;car.fraction=fraction;car.dir=dir;car.offset=offset;car.speed=(.013+rand()*.014)*100/road.points.length;cars.push(car);}
+    }
+    const stop=road.width*.65;
+    for(let j=1;j<=4;j++){
+      const p=routeAt(road,(j+.28)/5);
+      add(j===4?'planter':'trash',p.x-Math.sin(p.angle)*stop,p.y+Math.cos(p.angle)*stop,.96,i%6);
+    }
+  }
+  const {x,y}=world.spawn;
+  for(let i=0;i<9;i++){
+    const a=i*.42-.99,d=16+i*10;
+    add(i%3?'trash':'cone',x+Math.cos(a)*d,y+Math.sin(a)*d,1,i%6);
+  }
+  add('trash',x,y,1,2);
+  return {props,cars};
 }
-mount({title:'Hole City',highlight:'City',category:'City sandbox',description:'Drag to move through town. Swallow street clutter, then work up to the skyline.',orientation:'landscape',modes:['Timed','Endless','City Destruction'],unlockTitle:'Districts & vortex skins',defaults:{maxSize:0,total:0,map:0,skin:0,destroyed:0},root:46,tune:[0,3,7,10,7,5,3,10]},api=>{
-  const fx=particleKit(125);
-  let bg=null,mapIndex=-1,list=[],at={x:105,y:115},origin=null,vector={x:0,y:0},r=14,targetR=14,view={x:105,y:115,zoom:1.2},points=0,consumed=0,time=0,cityCount=0,limit=0,ending=false,tip=true;
-  function cache(){if(mapIndex!==api.state.map||!bg){mapIndex=api.state.map;bg=makeBg(mapIndex);}}
-  function frameCenter(x,y,zoom){
-    const edgeX=Math.min(size.w/2,api.w*.5/zoom),edgeY=Math.min(size.h/2,api.h*.5/zoom);
-    return {x:clamp(x,edgeX,size.w-edgeX),y:clamp(y,edgeY,size.h-edgeY),zoom};
+function landmark(g,r,variant){
+  const colors=[['#6cacc9','#365777','#dae8dd','#24536e'],['#c8a98b','#876882','#f6dcb2','#768db0'],['#90bfc5','#475985','#e6e9fe','#527b91']][variant%3];
+  const [front,side,roof,window]=colors,tiers=variant%3===1?4:3;
+  const faces=[];
+  const wide=r*.78;
+  let floor=r*.12;
+  ellipse(g,r*.23,r*.10,r*.93,r*.31,'#1d314c36');
+  for(let tier=0;tier<tiers;tier++){
+    const width=wide*(1-tier*.16),height=r*(tier===0?1.18:tier===tiers-1?1.7:1.13);
+    const left=-width*.58,right=width*.60, top=floor-height;
+    const depth=width*.30,rise=width*.27;
+    polygon(g,[[right,top],[right+depth,top-rise],[right+depth,floor-rise],[right,floor]],gradient(g,right,top,right+depth,floor,[side,'#495678']));
+    g.fillStyle=gradient(g,left,top,right,floor,[front,'#667a9c',side]);g.fillRect(left,top,right-left,height);
+    const rows=Math.max(4,Math.ceil(height/(r*.20))),cols=tier===0?5:4;
+    for(let row=0;row<rows;row++){
+      const y=top+(row+.5)*height/(rows+.45),step=(right-left)/cols;
+      for(let col=0;col<cols;col++){
+        g.fillStyle=(row*3+col+variant)%6===0?'#f8dc9ab5':window;
+        g.fillRect(left+step*(col+.14),y,step*.70,height/(rows+.45)*.55);
+      }
+      g.fillStyle='#ffe9c94f';g.fillRect(left,y-2,right-left,1.15);
+      g.strokeStyle='#bfd7e34f';g.lineWidth=1.2;g.beginPath();g.moveTo(right+1,y);g.lineTo(right+depth,y-rise);g.stroke();
+    }
+    faces.push({left,right,top,depth,rise});
+    floor=top+1;
+  }
+  for(const {left,right,top,depth,rise} of faces){
+    polygon(g,[[left,top],[left+depth,top-rise],[right+depth,top-rise],[right,top]],roof);
+    polygon(g,[[left+3,top-2],[left+depth+3,top-rise+2],[right+depth-4,top-rise+2],[right-4,top-2]],variant%2?'#a5979d':'#6ba1ad');
+    g.strokeStyle='#fff0c9c4';g.lineWidth=2;g.beginPath();g.moveTo(left,top);g.lineTo(right,top);g.lineTo(right+depth,top-rise);g.stroke();
+  }
+  const last=faces.at(-1), mast=last.top-last.rise*.5;
+  if(variant%2===0){
+    g.beginPath();g.moveTo(r*.12,mast);g.lineTo(r*.12,mast-r*.55);g.lineWidth=3;g.strokeStyle='#6d668a';g.stroke();
+    ellipse(g,r*.12,mast-r*.55,3.5,3.5,'#ff907b');
+  }else{
+    ellipse(g,r*.08,mast,last.depth*.62,last.rise*.33,'#e3f3cc');
+    label(g,'H',r*.08,mast,Math.max(12,r*.19),'#5b7e8c');
+  }
+}
+const tallCache=new Map();
+function tallArt(g,p){
+  if(!tallCache.has(p.variant)){
+    const canvas=document.createElement('canvas'),size=86;
+    canvas.width=231;canvas.height=560;
+    const brush=canvas.getContext('2d');brush.translate(112,523);
+    landmark(brush,size,p.variant);tallCache.set(p.variant,canvas);
+  }
+  const image=tallCache.get(p.variant),scale=p.r/86;
+  g.drawImage(image,-112*scale,-523*scale,231*scale,560*scale);
+}
+
+mount({
+  title:'Hole City',highlight:'City',category:'City takeover',description:'Roam the waterfront, grow through whole neighborhoods, and race five rival holes.',
+  orientation:'landscape',modes:['Timed','Endless','City Destruction'],unlockTitle:'Districts & vortex skins',
+  defaults:{maxSize:0,total:0,map:0,skin:0,destroyed:0},root:46,tune:[0,3,7,10,7,5,3,10]
+},api=>{
+  const fx=particleKit(110);
+  let world,worldIndex=-1,overview,levelScene,demo,player,rivals=[],props=[],cars=[],origin=null,
+    vector={x:0,y:0},view,round=0,limit=0,done=false,tip=true,saveAt=0,savePending=false,hudAt=0,rng;
+  const actor=(base,x,y,size)=>({...base,x,y,r:size,size,points:0,objects:0,buildings:0,target:null,think:base.think??0,phase:0});
+  function loadDistrict(){
+    if(world&&worldIndex===api.state.map)return;
+    worldIndex=api.state.map;world=window.SGCityDistrict.create(worldIndex);
+    demo=null;overview=document.createElement('canvas');overview.width=252;overview.height=182;
+    const g=overview.getContext('2d');
+    g.drawImage(world.ground,0,0,252,182);
+  }
+  function camera(x,y,zoom){
+    const edgeY=Math.min(world.h*.5,api.h*.52/(zoom*tilt)),edgeX=Math.min(world.w*.5,api.w*.5/zoom+edgeY*shear);
+    return {x:clamp(x,edgeX,world.w-edgeX),y:clamp(y,edgeY,world.h-edgeY),zoom};
+  }
+  function safeSpawn(angle,distance,cx=world.spawn.x,cy=world.spawn.y){
+    for(let i=0;i<12;i++){
+      const a=angle+i*.48,x=clamp(cx+Math.cos(a)*distance,70,world.w-70),y=clamp(cy+Math.sin(a)*distance,70,world.h-70);
+      if(world.isLand(x,y))return {x,y};
+    }
+    return world.spawn;
   }
   function start(mode){
-    cache();list=generate(mapIndex);at={x:103,y:87};origin=null;vector={x:0,y:0};r=targetR=mode==='City Destruction'?29:14;
-    view=frameCenter(at.x,at.y,1.17);points=consumed=time=cityCount=0;ending=false;tip=true;
-    limit=mode==='Timed'?105:mode==='City Destruction'?145:0;fx.clear();hud();
-    if(mode==='Endless')api.controls([{label:'Finish run',action:()=>finish('City tour finished')}]);
+    loadDistrict();
+    ({props,cars}=generate(world,worldIndex));
+    rng=worldRng(1571+worldIndex*4096);
+    round=0;limit=mode==='Timed'?135:mode==='City Destruction'?185:0;
+    origin=null;vector={x:0,y:0};done=false;tip=true;saveAt=0;savePending=false;hudAt=0;
+    player=actor({name:'You',color:skins[api.state.skin][1],isPlayer:true},world.spawn.x,world.spawn.y,mode==='City Destruction'?32:14);
+    view=camera(player.x,player.y,1.05);
+    rivals=rivalsData.map(([name,color],i)=>{
+      const {x,y}=safeSpawn(-1.7+i*tau/rivalsData.length,386+i*83);
+      return actor({name,color,index:i,think:i*.08},x,y,mode==='City Destruction'?23+i*.8:13+i*.56);
+    });
+    fx.clear();hud();
+    if(mode==='Endless')api.controls([{label:'Finish run',action:()=>finish('City tour finished'),icon:'■'}]);
   }
+  function ranking(){return [player,...rivals].sort((a,b)=>b.points-a.points||Number(!!b.isPlayer)-Number(!!a.isPlayer));}
   function hud(){
-    const values=[['Score',points],['Size',Math.floor(targetR)],['Swallowed',consumed]];
-    if(api.mode==='City Destruction')values.push(['Buildings',cityCount+'/6']);
-    if(limit)values.push(['Time',Math.max(0,Math.ceil(limit-time))]);api.hud(values);
+    const place=ranking().indexOf(player)+1;
+    const values=[['Rank',place+'/6'],['Score',player.points],['Size',Math.floor(player.size)]];
+    if(api.mode==='City Destruction')values.push(['Buildings',player.buildings+'/6']);
+    if(limit)values.push(['Time',Math.max(0,Math.ceil(limit-round))]);
+    api.hud(values);
   }
   function finish(head){
-    if(ending)return;ending=true;api.save();api.end(points,head,consumed+' objects swallowed · size '+Math.floor(targetR)+'.');
+    if(done)return;
+    done=true;api.save();
+    api.end(player.points,head,'Place '+(ranking().indexOf(player)+1)+' of 6 · '+player.objects+' objects · size '+Math.floor(player.size)+'.');
   }
   function movement(p){
     if(!origin)return;
     const dx=p.x-origin.x,dy=p.y-origin.y,d=Math.hypot(dx,dy);
-    vector.x=d>5?dx/Math.max(d,65):0;vector.y=d>5?dy/Math.max(d,65):0;
+    vector.x=d>5?(dx-dy*shear/tilt)/Math.max(d,58):0;vector.y=d>5?dy/tilt/Math.max(d,58):0;
     if(d>12)tip=false;
   }
-  function update(dt){
-    time+=dt;if(limit&&time>=limit){finish('Time is up');return;}
-    if(api.mode==='City Destruction'&&cityCount>=6){finish('Skyline cleared');return;}
-    const speed=173+Math.min(r*1.24,83);
-    at.x=clamp(at.x+vector.x*dt*speed,16,size.w-16);at.y=clamp(at.y+vector.y*dt*speed,16,size.h-16);
-    r=lerp(r,targetR,1-Math.exp(-dt*5));
-    const scale=clamp(1.32-r*.0061,.55,1.25);
-    view.zoom=lerp(view.zoom,scale,1-Math.exp(-dt*3));
-    const target=frameCenter(at.x,at.y,view.zoom);
-    view=frameCenter(lerp(view.x,target.x,1-Math.exp(-dt*6)),lerp(view.y,target.y,1-Math.exp(-dt*6)),view.zoom);
-    for(const p of list){
+  function move(unit,dx,dy,dt,speed){
+    const magnitude=Math.hypot(dx,dy),step=speed*dt/Math.max(1,magnitude);
+    const x=clamp(unit.x+dx*step,18,world.w-18),y=clamp(unit.y+dy*step,18,world.h-18);
+    if(world.isLand(x,y)){unit.x=x;unit.y=y;return;}
+    if(world.isLand(x,unit.y))unit.x=x;
+    if(world.isLand(unit.x,y))unit.y=y;
+  }
+  function requirement(p){
+    return items[p.k][1]*clamp(.76+p.scale*.24,.90,1.10);
+  }
+  function accessible(unit,p){return !p.skip&&!p.owner&&unit.r>=requirement(p);}
+  function chooseTarget(unit){
+    let best=null,rank=0;
+    for(const p of props){
+      if(!accessible(unit,p))continue;
+      const d=(unit.x-p.x)**2+(unit.y-p.y)**2;
+      if(d>1200**2)continue;
+      const weight=(3+items[p.k][2]*.38)/(1+d/(12700+unit.r*115));
+      if(weight>rank){rank=weight;best=p;}
+    }
+    if(best)return best;
+    return safeSpawn(unit.index*1.8+rng()*tau,200+rng()*280,unit.x,unit.y);
+  }
+  function moveRival(unit,dt){
+    unit.think-=dt;unit.phase+=dt;
+    if(!unit.target||unit.target.owner||unit.target.skip||unit.think<=0){
+      unit.target=chooseTarget(unit);unit.think=.45+unit.index*.054+rng()*.24;
+    }
+    const dx=unit.target.x-unit.x,dy=unit.target.y-unit.y,d=Math.hypot(dx,dy);
+    const beforeX=unit.x,beforeY=unit.y;
+    if(d>5)move(unit,dx/d,dy/d,dt,124+unit.index*5+Math.min(unit.r,100)*.22);
+    if(unit.x===beforeX&&unit.y===beforeY){
+      const wiggle=unit.phase*1.7+unit.index*1.9;
+      move(unit,Math.cos(wiggle),Math.sin(wiggle),dt,102);
+    }
+  }
+  function updateTraffic(dt){
+    for(const car of cars){
+      if(car.owner||car.skip)continue;
+      car.fraction+=car.speed*dt*car.dir;
+      if(car.fraction<0||car.fraction>=1)car.fraction=car.dir===1?.001:.999;
+      const pos=routeAt(car.road,car.fraction);
+      car.x=pos.x-Math.sin(pos.angle)*car.offset;car.y=pos.y+Math.cos(pos.angle)*car.offset;
+      car.angle=pos.angle+(car.dir===1?0:Math.PI);
+    }
+  }
+  function swallow(p){
+    const who=p.owner,[,,,mass]=items[p.k];
+    const prior=Math.floor(who.size);
+    who.points+=items[p.k][2];who.objects++;
+    who.size=Math.min(190,Math.sqrt(who.size**2+mass*clamp(p.scale,.73,1.20)));
+    if(big.has(p.k))who.buildings++;
+    p.skip=true;
+    if(!who.isPlayer)return;
+    api.state.total++;
+    if(big.has(p.k))api.state.destroyed++;
+    api.state.maxSize=Math.max(api.state.maxSize,Math.floor(player.size));
+    if(districts.some(([,min])=>min>prior&&min<=player.size)||skins.some(([,,min])=>min>prior&&min<=player.size)){
+      api.notice('New district or vortex unlocked');api.tone('level');
+    }else if(big.has(p.k)){api.notice(p.k==='landmark'?'Landmark swallowed':'Building swallowed');api.tone('combo');}
+    else api.tone('good');
+    fx.burst(player.x,player.y,player.color,big.has(p.k)?18:5,big.has(p.k)?172:93,12);
+    api.buzz();savePending=true;
+  }
+  function updateProps(dt,units){
+    for(const p of props){
       if(p.skip)continue;
-      if(p.fall){
-        p.fall+=dt;
-        p.x=lerp(p.x,at.x,dt*7);p.y=lerp(p.y,at.y,dt*7);
-        if(p.fall<.51)continue;
-        p.skip=true;consumed++;
-        const value=items[p.k][2],previous=Math.floor(targetR);
-        points+=value;targetR=Math.min(162,Math.sqrt(targetR**2+value*18));
-        api.state.total++;
-        if(['house','building','tower'].includes(p.k)){cityCount++;api.state.destroyed++;}
-        api.state.maxSize=Math.max(api.state.maxSize,Math.floor(targetR));
-        if(maps.some(row=>row[1]>previous&&row[1]<=targetR)||vortex.some(row=>row[2]>previous&&row[2]<=targetR)){
-          api.notice('New district or vortex unlocked');api.tone('level');
-        }else api.tone(value>=37?'combo':'good');
-        fx.burst(at.x,at.y,vortex[api.state.skin][1],value>=37?14:5,96,5);api.buzz();api.save();
+      if(p.owner){
+        p.fall+=dt;p.x=lerp(p.x,p.owner.x,Math.min(1,dt*7));p.y=lerp(p.y,p.owner.y,Math.min(1,dt*7));
+        if(p.fall>=(big.has(p.k)?.73:.41))swallow(p);
         continue;
       }
-      if(p.moving)p.x=p.home+Math.sin(time*p.moving/52+p.home)*40;
-      if(Math.abs(p.x-at.x)>r+60||Math.abs(p.y-at.y)>r+60)continue;
-      const near=Math.hypot(p.x-at.x,p.y-at.y);
-      if(near<r*.83&&targetR>=items[p.k][1])p.fall=.001;
-    }
-    fx.update(dt);hud();
-  }
-  function hole(g,x,y,radius,tint,time){
-    const glow=g.createRadialGradient(x,y,Math.max(1,radius*.53),x,y,radius*1.48);
-    glow.addColorStop(0,'#1c0a2d');glow.addColorStop(.49,tint+'b5');glow.addColorStop(1,tint+'00');
-    ellipse(g,x,y,radius*1.48,radius*1.48,glow);
-    ellipse(g,x,y,radius,radius,'#040315');
-    g.save();g.translate(x,y);
-    for(let j=0;j<5;j++){
-      const sign=j%2?1:-1;
-      g.beginPath();g.ellipse(0,0,radius*(.77+j*.075),radius*(.64+j*.085),j*.62+time*.52,time*sign*2+j, time*sign*2+j+Math.PI*1.45);
-      g.lineCap='round';g.strokeStyle=j%3===0?'#eacbff':tint;g.globalAlpha=.53+j*.06;g.lineWidth=Math.max(1.2,radius*.04-j*.18);g.stroke();
-    }
-    for(let j=0;j<12;j++){
-      const a=time*(1.4+j*.02)+j*2.4,d=radius*(1.02+j%3*.13);
-      g.globalAlpha=.7-(j%3)*.12;ellipse(g,Math.cos(a)*d,Math.sin(a)*d,radius*.046+1,radius*.03+1,tint);
-    }
-    g.restore();
-  }
-  let demo=null;
-  function draw(g,now,screen){
-    cache();const {w,h}=api,tint=vortex[api.state.skin][1];
-    const menu=screen==='menu';
-    if(menu&&(!demo||demo.map!==mapIndex))demo={map:mapIndex,items:generate(mapIndex)};
-    const scene=menu?frameCenter(465,328,.81):view;
-    const sceneObjects=menu?demo.items:list;
-    g.fillStyle='#363950';g.fillRect(0,0,w,h);
-    g.save();g.translate(w/2,h/2);g.scale(scene.zoom,scene.zoom);g.translate(-scene.x,-scene.y);
-    g.drawImage(bg,0,0);
-    const center=menu?{x:scene.x+w*.23/scene.zoom,y:scene.y+44}:at;
-    hole(g,center.x,center.y,menu?71+Math.sin(now*2)*6:r,tint,now);
-    const mx=w*.5/scene.zoom+160,my=h*.5/scene.zoom+180;
-    const visibles=sceneObjects.filter(p=>!p.skip&&Math.abs(p.x-scene.x)<mx&&Math.abs(p.y-scene.y)<my).sort((a,b)=>a.y-b.y);
-    for(const p of visibles){
-      g.save();g.translate(p.x,p.y);g.rotate(p.angle+(p.fall||0)*4.1);
-      if(p.fall){
-        const fall=Math.max(.01,1-p.fall/.53);
-        g.scale(fall,fall*.81);g.globalAlpha=fall;
+      for(const unit of units){
+        const range=Math.max(7,unit.r*.80-p.r*.10);
+        if(Math.abs(unit.x-p.x)>range||Math.abs(unit.y-p.y)>range)continue;
+        if(accessible(unit,p)&&(unit.x-p.x)**2+(unit.y-p.y)**2<range*range){
+          p.owner=unit;break;
+        }
       }
-      art.draw(g,p.k,p.r,p.variant);g.restore();
     }
-    if(!menu)fx.draw(g);
+  }
+  function clash(){
+    if(round<16)return;
+    for(const rival of rivals){
+      const distance=Math.hypot(rival.x-player.x,rival.y-player.y);
+      if(rival.r>player.r*1.36&&distance<rival.r*.64){
+        fx.burst(player.x,player.y,rival.color,28,180,17);
+        finish(rival.name+' swallowed you');return;
+      }
+      if(player.r>rival.r*1.38&&distance<player.r*.67){
+        player.points+=Math.round(rival.points*.34)+38;
+        player.size=Math.min(190,Math.sqrt(player.size**2+rival.size**2*.36));
+        api.state.maxSize=Math.max(api.state.maxSize,Math.floor(player.size));savePending=true;
+        const turned=safeSpawn(rival.index*1.6+round,730,player.x,player.y);
+        Object.assign(rival,{...turned,target:null,think:0,r:14,size:14});
+        fx.burst(player.x,player.y,rival.color,22,148,20);
+        api.notice('Rival swallowed · '+rival.name);api.tone('combo');
+      }
+    }
+  }
+  function update(dt){
+    round+=dt;
+    if(limit&&round>=limit){finish('Time is up');return;}
+    if(api.mode==='City Destruction'&&player.buildings>=6){finish('Skyline cleared');return;}
+    move(player,vector.x,vector.y,dt,168+Math.min(player.r,120)*.40);
+    for(const rival of rivals)moveRival(rival,dt);
+    const units=[player,...rivals];
+    for(const unit of units)unit.r=lerp(unit.r,unit.size,1-Math.exp(-dt*5));
+    updateTraffic(dt);updateProps(dt,units);clash();
+    view.zoom=lerp(view.zoom,clamp(1.12-player.r*.0031,.53,1.09),1-Math.exp(-dt*2.8));
+    const target=camera(player.x,player.y,view.zoom);
+    view=camera(lerp(view.x,target.x,1-Math.exp(-dt*6)),lerp(view.y,target.y,1-Math.exp(-dt*6)),view.zoom);
+    fx.update(dt);
+    if(savePending&&round>=saveAt){saveAt=round+.65;savePending=false;api.save();}
+    if(round>=hudAt){hudAt=round+.19;hud();}
+  }
+  function hole(g,x,y,r,color,time){
+    const glow=g.createRadialGradient(x,y,Math.max(1,r*.50),x,y,r*1.46);
+    glow.addColorStop(0,'#270e44');glow.addColorStop(.51,color+'b8');glow.addColorStop(1,color+'00');
+    ellipse(g,x,y,r*1.46,r*1.46,glow);ellipse(g,x,y,r,r,'#08041c');
+    g.save();g.translate(x,y);
+    for(let j=0;j<4;j++){
+      const sign=j%2?1:-1;
+      g.beginPath();g.ellipse(0,0,r*(.78+j*.075),r*(.63+j*.10),j*.57+time*.52,time*sign*2+j,time*sign*2+j+Math.PI*1.53);
+      g.lineCap='round';g.strokeStyle=j===3?'#eee2ff':color;g.globalAlpha=.53+j*.10;g.lineWidth=Math.max(1.5,r*.043-j*.18);g.stroke();
+    }
     g.restore();
-    if(!menu&&screen==='play'){
-      if(tip&&time<10)label(g,'Drag to move',w/2,h*.86,24,'#fff2ff');
-      if(origin&&Math.hypot(vector.x,vector.y)>.1){
-        ellipse(g,origin.x,origin.y,34,34,'#17112c70');
-        ellipse(g,origin.x+vector.x*22,origin.y+vector.y*22,12,12,tint+'be');
+  }
+  function drawMinimap(g){
+    const wide=api.w>760,w=wide?133:100,h=wide?88:67,x=api.w-w-12,y=77;
+    box(g,x-4,y-4,w+8,h+8,9,'#1d1539e8');
+    g.save();g.beginPath();g.roundRect(x,y,w,h,6);g.clip();
+    g.drawImage(overview,x,y,w,h);
+    for(const unit of [...rivals,player]){
+      const px=x+unit.x/world.w*w,py=y+unit.y/world.h*h;
+      ellipse(g,px,py,unit.isPlayer?4:2.8,unit.isPlayer?4:2.8,unit.color);
+      if(unit.isPlayer)ellipse(g,px,py,1.5,1.5,'#fff');
+    }
+    g.restore();
+  }
+  function drawLeaders(g){
+    const x=api.w-145,y=177,leaders=ranking().slice(0,3);
+    box(g,x,y,132,77,8,'#1c153bdf');
+    leaders.forEach((unit,i)=>{
+      const line=y+14+i*23;
+      ellipse(g,x+12,line,3.2,3.2,unit.color);
+      label(g,(i+1)+'  '+unit.name,x+21,line,12,unit.isPlayer?'#fff':'#e0d2ef','left');
+      label(g,''+unit.points,x+121,line,12,'#fff','right');
+    });
+  }
+  function draw(g,now,screen){
+    loadDistrict();const {w,h}=api;
+    const menu=screen==='menu'||!view;
+    if(menu&&!demo){
+      demo=generate(world,worldIndex).props;
+      const center=world.plots.filter(p=>p.zone==='downtown').find(p=>p.r>82&&p.x>world.w*.43&&p.x<world.w*.72&&p.y>world.h*.20)??world.spawn;
+      levelScene={x:center.x-225,y:center.y+90,zoom:.87};
+    }
+    const scene=menu?camera(levelScene.x,levelScene.y,levelScene.zoom):view;
+    const z=scene.zoom,screenX=x=>w*.5+(x-scene.x)*z,screenY=y=>h*.52+(y-scene.y)*z*tilt;
+    const project=(x,y)=>({x:screenX(x)+(y-scene.y)*z*shear,y:screenY(y)});
+    g.fillStyle='#327e92';g.fillRect(0,0,w,h);
+    const show=menu?demo:props;
+    const units=menu?[{x:scene.x+w*.24/z,y:scene.y+105,r:72,color:skins[api.state.skin][1]}]:[...rivals,player];
+    g.save();
+    g.transform(z,0,z*shear,z*tilt,w*.5-z*(scene.x+scene.y*shear),h*.52-z*tilt*scene.y);
+    g.drawImage(world.ground,0,0,world.w,world.h);
+    for(const unit of units)hole(g,unit.x,unit.y,unit.r,unit.color,now);
+    g.restore();
+    const visible=show.filter(p=>{
+      if(p.skip)return false;
+      const pos=project(p.x,p.y);
+      return pos.x>-p.r*z*2-25&&pos.x<w+p.r*z*2+25&&pos.y>-60&&pos.y<h+Math.max(70,p.r*z*(p.k==='landmark'?6:4));
+    }).sort((a,b)=>a.y-b.y);
+    for(const p of visible){
+      const pos=project(p.x,p.y);
+      g.save();g.translate(pos.x,pos.y);g.scale(z,z);
+      if(p.owner){
+        const fraction=1-clamp(p.fall/(big.has(p.k)?.73:.41),0,.98);
+        g.rotate((p.variant%2?1:-1)*(1-fraction)*.94);
+        g.scale(fraction,fraction*.85);g.globalAlpha=fraction;
+      }else if(p.road){
+        const angle=Math.atan2(tilt*Math.sin(p.angle),Math.cos(p.angle)+shear*Math.sin(p.angle));
+        g.rotate(angle);
+      }
+      if(p.k==='landmark')tallArt(g,p);else art.draw(g,p.k,p.r,p.variant);
+      g.restore();
+    }
+    if(!menu){
+      g.save();
+      g.transform(z,0,z*shear,z*tilt,w*.5-z*(scene.x+scene.y*shear),h*.52-z*tilt*scene.y);
+      fx.draw(g);g.restore();
+      for(const unit of units){
+        const pt=project(unit.x,unit.y);
+        if(pt.x<12||pt.x>w-12||pt.y<18||pt.y>h-16)continue;
+        const nameY=pt.y+Math.max(17,unit.r*z*tilt+12);
+        box(g,pt.x-25,nameY-8,50,16,5,'#1f1337e5');label(g,unit.name,pt.x,nameY,11,unit.color);
+      }
+      if(screen==='play'){
+        drawMinimap(g);if(w>735)drawLeaders(g);
+        if(tip&&round<11){
+          box(g,w/2-107,h*.84-18,214,34,12,'#201535dc');
+          label(g,'Drag to move',w/2,h*.84,19,'#fff2ff');
+        }
+        if(origin&&Math.hypot(vector.x,vector.y)>.1){
+          ellipse(g,origin.x,origin.y,32,32,'#1e133b6b');
+          ellipse(g,origin.x+vector.x*18,origin.y+vector.y*15,10,10,player.color+'a1');
+        }
       }
     }
   }
   function unlocks(){
     api.showChoices('Districts & vortex skins','Size record '+api.state.maxSize+' · '+api.state.total+' lifetime objects',[
-      ...maps.map(([name,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Select district',disabled:need>api.state.maxSize,selected:i===api.state.map,action(){api.state.map=i;api.save();unlocks();}})),
-      ...vortex.map(([name,,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Vortex skin',disabled:need>api.state.maxSize,selected:i===api.state.skin,action(){api.state.skin=i;api.save();unlocks();}})),
+      ...districts.map(([name,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Select district',disabled:need>api.state.maxSize,selected:i===api.state.map,action(){api.state.map=i;api.save();unlocks();}})),
+      ...skins.map(([name,,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Vortex skin',disabled:need>api.state.maxSize,selected:i===api.state.skin,action(){api.state.skin=i;api.save();unlocks();}})),
       {label:'Skyline eater',detail:api.state.destroyed>=10?'Achievement earned':'Swallow 10 buildings ('+api.state.destroyed+'/10)'},
       {label:'Street sweep',detail:api.state.total>=100?'Achievement earned':'Swallow 100 total objects ('+api.state.total+'/100)'}
     ]);

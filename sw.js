@@ -1,7 +1,7 @@
 'use strict';
 
 // Cache the hub shell, covers and the five installed arcade games as a single release.
-const CACHE = 'sg-mobile-arcade-2026112501';
+const CACHE = 'sg-mobile-arcade-2026112502';
 const ids = ['slice-master', 'highway-rush', 'color-switch', 'hole-city', 'burger-rush'];
 const scope = self.registration.scope;
 const paths = [
@@ -11,10 +11,10 @@ const paths = [
     'foamfall','fus','gp','little-garden','minecraft-kingdoms','motor-dynasty','pitchside',
     'police-patrol-simulator','president-simulator','redwood','second-chance',
     'traffic-jam-simulator','world-conquest','world-forge'].map(name => 'assets/'+name+'.jpg'),
-  'games/mobile/platform.js', 'games/mobile/arcade.js', 'games/mobile/arcade.css',
+  'games/mobile/platform.js', 'games/mobile/arcade.js', 'games/mobile/arcade.css', 'games/mobile/arcade-themes.css',
   ...ids.flatMap(id => ['assets/'+id+'.png', 'games/'+id+'/index.html', 'games/'+id+'/game.js']),
   'games/slice-master/paradise.jpg', 'games/highway-rush/highway-art.js',
-  'games/hole-city/city-art.js', 'games/burger-rush/burger-art.js'
+  'games/hole-city/city-art.js', 'games/hole-city/district.js', 'games/burger-rush/burger-art.js'
 ];
 const installed = new Set(paths);
 self.addEventListener('install', event => {
@@ -44,7 +44,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const local = () => cache.match(new URL(key,scope));
-    if (!url.search || [...url.searchParams.values()].includes('2026112501')) {
+    if (!url.search || [...url.searchParams.values()].includes('2026112502')) {
       const hit = await local();
       if (hit) return hit;
     }

@@ -256,14 +256,7 @@ body.playing { overflow: hidden; }
   .play { margin-top: 10px; }
 }
 
-.library-categories{display:flex;align-items:center;gap:12px;margin:-4px 0 15px;flex-wrap:wrap}
-#mobile-category{min-height:40px;border-radius:8px;padding:6px 12px;border:1px solid var(--line);background:#132644;color:#d4e9ff;font-weight:720;cursor:pointer}
-#mobile-category[aria-pressed=true]{background:#dfedff;color:#0b1930}
-#mobile-category:disabled{opacity:.5;cursor:default}
-#mobile-offline-status{color:var(--muted);font-size:.82rem}
-.exclusive-badge{align-self:flex-start;background:#342759;color:#ead9ff;border:1px solid #76589c;border-radius:5px;padding:3px 6px;font-size:.69rem;line-height:1.2;font-weight:760}
 .mobile-exclusive .game-card>img,.mobile-details .detail-cover>img{aspect-ratio:8/3;object-fit:contain;object-position:center}
-.mobile-details .play:disabled{background:#24354e;color:#bccae0;cursor:default}
 .arcade-player:has(iframe) .player-bar{display:none}
 .arcade-player:has(.waiting-for-landscape) .player-bar{display:flex}
 @media (orientation:landscape) and (max-height:550px){.mobile-details .detail-cover>img{height:100%;aspect-ratio:auto;object-fit:contain}}

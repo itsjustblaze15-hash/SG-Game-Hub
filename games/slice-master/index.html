@@ -2,12 +2,14 @@
 <html lang="en" data-game="slice-master"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#17142e"><title>Slice Master · SG</title>
-<link rel="stylesheet" href="../mobile/arcade.css">
-<script defer src="../mobile/platform.js"></script><script defer src="../mobile/arcade.js"></script>
-<script defer src="game.js"></script></head>
+<link rel="stylesheet" href="../mobile/arcade.css?v=2026112502">
+<link rel="stylesheet" href="../mobile/arcade-themes.css?v=2026112502">
+<script defer src="../mobile/platform.js?v=2026112502"></script><script defer src="../mobile/arcade.js?v=2026112502"></script>
+<script defer src="game.js?v=2026112502"></script></head>
 <body><main id="arcade">
   <div class="stage"><canvas id="board" aria-label="Slice Master playfield"></canvas></div>
-  <div id="chrome" class="chrome" hidden><button id="back-to-sg" class="game-badge" aria-label="Return to SG">SG</button><div class="status" id="stats"></div><button id="pause" class="game-badge" aria-label="Pause game">Ⅱ</button></div>
+  <button type="button" id="back-to-sg" class="sg-exit" aria-label="Return to SG">SG</button>
+  <div id="chrome" class="chrome" hidden><div class="status" id="stats"></div><button id="pause" class="game-badge" aria-label="Pause game">Ⅱ</button></div>
   <div id="toolbar" class="toolbar" hidden></div><div id="game-note" class="notice" role="status" hidden></div>
   <div id="menu-layer" class="layer" data-screen="menu"><section id="menu-panel" class="panel" aria-label="Slice Master menu"></section></div>
   <noscript>Enable JavaScript to play Slice Master.</noscript>

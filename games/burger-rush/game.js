@@ -24,6 +24,17 @@ const groups={
   'Sauces':['ketchup','mustard','special'],
   'Sides':['fries','rings','soda','shake','nuggets']
 };
+const stationIcons={Grill:'🔥',Produce:'🥬',Sauces:'🫙',Sides:'🍟'};
+const thumbnails=new Map();
+function ingredientArt(key){
+  if(!thumbnails.has(key)){
+    const image=document.createElement('canvas');image.width=96;image.height=76;
+    const ctx=image.getContext('2d'),tall=['soda','shake','fries','ketchup','mustard','special'].includes(key);
+    art.food(ctx,key,48,37,tall?48:78,tall?62:46);
+    thumbnails.set(key,image);
+  }
+  return thumbnails.get(key);
+}
 const thresholds={chicken:4,lettuce:2,tomato:2,onion:6,pickle:4,ketchup:3,mustard:5,special:6,fries:3,rings:5,soda:2,shake:7,nuggets:6};
 const locations=[['SG Corner Diner',1],['Boardwalk Kitchen',4],['Uptown Lunch Bar',7],['Sunset Grill',10]];
 const themes=[['Classic Red','#ff773a',0],['Golden Counter','#ffc75d',85],['Cherry Chrome','#fa548b',165],['Seafoam Special','#6ff6ce',260]];
@@ -33,8 +44,10 @@ const steps=({
   'bun-bottom':'Bun','bun-top':'Top','beef':'Beef','chicken':'Chicken','cheese':'Cheese','lettuce':'Lettuce','tomato':'Tomato','onion':'Onion','pickle':'Pickle',
   'ketchup':'Ketchup','mustard':'Mustard','special':'SG sauce','fries':'Fries','rings':'Rings','soda':'Soda','shake':'Shake','nuggets':'Nuggets'
 });
-mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',description:'Read the ticket, work the grill and serve each order before your customers lose patience.',orientation:'landscape',modes:['Shift'],unlockTitle:'Restaurant & recipes',defaults:{cash:0,shift:1,unlocked:1,grill:0,patience:0,location:0,theme:0,decor:[0],served:0},root:55,tune:[0,4,7,9,7,4,2,7]},api=>{
+mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',description:'Follow the pictures, stack the burger and serve it while it’s hot.',orientation:'landscape',modes:['Shift'],unlockTitle:'Restaurant & recipes',defaults:{cash:0,shift:1,unlocked:1,grill:0,patience:0,location:0,theme:0,decor:[0],served:0},root:55,tune:[0,4,7,9,7,4,2,7]},api=>{
   const fx=particleKit(116);
+  const orderStatus=document.createElement('p');orderStatus.className='arcade-sr';orderStatus.setAttribute('role','status');
+  document.getElementById('arcade').append(orderStatus);
   let bg,station='Grill',queue=[],stack=[],sides=[],cooking={},clock=0,next=0,sid=0,selected=0,served=0,skipped=0,cash=0,tips=0,goal=3,duration=110,level=1,sizeCode='',streak=0,finished=false;
   function createBg(){
     bg=document.createElement('canvas');bg.width=api.w;bg.height=api.h;
@@ -61,14 +74,18 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
     api.hud([['Served',served+'/'+goal],['Shift',level],['Time',Math.max(0,Math.ceil(duration-clock))],['Earned','$'+cash]]);
   }
   function refresh(){
-    const tabs=Object.keys(groups).map(group=>({label:group===station?'• '+group:group,action(){station=group;refresh();}}));
+    const tabs=Object.keys(groups).map(name=>({label:name,icon:stationIcons[name],group:'stations',active:name===station,action(){station=name;refresh();}}));
     const keys=groups[station].filter(key=>(thresholds[key]??1)<=level);
     api.controls([
-      ...tabs,{label:'Clear tray',action(){stack=[];sides=[];api.notice('Tray cleared');}},
-      {label:'Serve',action:serve,id:'serve-order'},
-      ...keys.map(key=>({label:names[key],action:()=>operate(key),id:'station-'+key}))
+      ...tabs,{label:'Clear tray',icon:'🧹',group:'actions',action(){stack=[];sides=[];api.notice('Tray cleared');}},
+      {label:'Serve',icon:'🍽️',group:'actions',action:serve,id:'serve-order'},
+      ...keys.map(key=>({label:names[key],icon:ingredientArt(key).cloneNode(),group:'ingredients',action:()=>operate(key),id:'station-'+key}))
     ]);
     document.getElementById('serve-order')?.classList.add('main-action');
+    for(const key of keys){
+      const icon=document.querySelector('#station-'+key+' canvas');
+      icon?.getContext('2d').drawImage(ingredientArt(key),0,0);
+    }
     syncButtons();
   }
   function syncButtons(){
@@ -76,7 +93,8 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
       const btn=document.getElementById('station-'+key);if(!btn)continue;
       const item=cooking[key];
       const text=names[key]+(item?(item.burnt?' · burnt':clock>=item.cooked?' · ready':' · cooking'):'');
-      if(btn.textContent!==text)btn.textContent=text;
+      const words=btn.querySelector('.control-label');
+      if(words.textContent!==text)words.textContent=text;
       btn.classList.toggle('active',!!item&&clock>=item.cooked&&!item.burnt);
     }
   }
@@ -144,33 +162,54 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
     }
     fx.update(dt);syncButtons();hud();
   }
-  function wrapText(g,text,x,y,maxWidth,size,color){
-    g.font='800 '+size+'px system-ui';
-    let line='',height=y;
-    for(const word of text.split(' ')){
-      if(line&&g.measureText(line+' '+word).width>maxWidth){label(g,line,x,height,size,color);line='';height+=size*1.22;}
-      line+=(line?' ':'')+word;
+  function ticket(g,customer){
+    const {w,h}=api,[name,,burger,side]=customer.recipe;
+    const x=w/2,y=h*.113,width=Math.min(460,w*.69),height=side.length?181:115;
+    const left=x-width/2;
+    box(g,left+5,y+8,width,height,11,'#45233383');
+    box(g,left,y,width,height,11,clock<customer.bad?'#ffd0bb':'#fff6dd');
+    box(g,left+10,y+10,width-20,26,7,'#972932');
+    label(g,name,x,y+23,16,'#fff5d8');
+    label(g,'BUILD BOTTOM TO TOP',left+17,y+45,10,'#733a39','left');
+    const stamps=(keys,orderY,placed,inOrder)=>{
+      const gap=5,tile=Math.min(48,(width-28-gap*(keys.length-1))/keys.length);
+      const first=x-(tile+gap)*(keys.length-1)/2;
+      for(const [i,key] of keys.entries()){
+        const sx=first+(tile+gap)*i;
+        const chosen=inOrder?placed[i]:placed.includes(key)?key:null;
+        const color=chosen===key?'#386b4f':chosen?'#ad3d3a':'#c7ab86';
+        box(g,sx-tile/2,orderY,tile,39,7,color);
+        box(g,sx-tile/2+1.5,orderY+1.5,tile-3,36,6,chosen===key?'#e1f6d7':'#fff9ec');
+        g.drawImage(ingredientArt(key),sx-tile*.46,orderY+1,tile*.92,33);
+        if(chosen)label(g,chosen===key?'✓':'×',sx+tile*.32,orderY+33,13,color);
+        if(inOrder&&i<keys.length-1)label(g,'›',sx+(tile+gap)/2,orderY+20,12,'#935a58');
+      }
+    };
+    stamps(burger,y+52,stack,true);
+    if(side.length){
+      label(g,'ADD SIDES',left+17,y+112,10,'#733a39','left');
+      stamps(side,y+121,sides,false);
     }
-    if(line)label(g,line,x,height,size,color);
+    box(g,left+13,y+height-12,width-26,5,2,'#e1c6a7');
+    const patience=clamp(customer.patience/customer.max,0,1);
+    box(g,left+13,y+height-12,Math.max(.02,(width-26)*patience),5,2,patience<.31?'#de4351':'#55a865');
   }
   function orders(g,now){
-    const w=api.w,h=api.h,current=choice(),slot=w/Math.max(queue.length+1,2);
-    queue.forEach((c,i)=>{
-      const x=slot*(i+1), grow=clamp((clock-c.arrive)*2.4,0,1);g.save();g.globalAlpha=grow*.6+.4;
-      art.customer(g,x,h*.65,.44*grow+.67,c.look,clamp(c.patience/c.max,0,1),now*3+i);
-      g.globalAlpha=1;
-      const ww=Math.min(200,slot*.91),top=h*.135;
-      box(g,x-ww/2,top,ww,86,13,c===current?'#fff2d2':'#efc6ac');
-      if(c.bad>clock)box(g,x-ww/2,top,ww,86,13,'#ff8180');
-      label(g,c.recipe[0],x,top+18,Math.min(16,ww/10.4),'#5d2430');
-      if(c===current){
-        const burger=c.recipe[2].map(k=>steps[k]).join(' › '),side=c.recipe[3].map(k=>steps[k]).join(' + ');
-        wrapText(g,burger+(side?' / '+side:''),x,top+37,ww-16,Math.min(12,ww/13),'#61414a');
-      }else label(g,'Tap ticket',x,top+46,13,'#61414a');
-      box(g,x-ww*.43,top+76,ww*.86,5,2,'#d4a792');
-      box(g,x-ww*.43,top+76,Math.max(.01,ww*.86*clamp(c.patience/c.max,0,1)),5,2,c.patience<c.max*.31?'#de4351':'#65bc5c');
+    const {w,h}=api,current=choice(),slot=w/Math.max(queue.length+1,2);
+    const spoken=current?current.recipe[0]+'. From bottom to top: '+current.recipe[2].map(k=>names[k]).join(', ')+
+      (current.recipe[3].length?'. Sides: '+current.recipe[3].map(k=>names[k]).join(', '):''):'';
+    if(orderStatus.textContent!==spoken)orderStatus.textContent=spoken;
+    queue.forEach((customer,index)=>{
+      const x=slot*(index+1), grow=clamp((clock-customer.arrive)*2.4,0,1);
+      g.save();g.globalAlpha=grow*.6+.4;
+      art.customer(g,x,h*.65,.44*grow+.67,customer.look,clamp(customer.patience/customer.max,0,1),now*3+index);
       g.restore();
+      if(queue.length<2)return;
+      const selected=customer===current;
+      box(g,x-34,h*.604,68,26,7,selected?'#a22f38':'#551e32');
+      label(g,'Order '+(index+1),x,h*.627,13,selected?'#fff4d8':'#f1c9ae');
     });
+    if(current)ticket(g,current);
   }
   function tray(g){
     const {w,h}=api,x=w*.56,y=h*.714;
@@ -248,10 +287,15 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
     }),catalog);
   }
   return {start,update,draw,unlocks:catalog,recordText:()=>api.state.served+' lifetime orders · $'+api.state.cash+' banked',
+    guide(){api.showChoices('Making a burger','Match the pictures on the ticket, in order.',[
+      {label:'1. Start with the bottom bun',detail:'Add each pictured ingredient from left to right.'},
+      {label:'2. Tap the grill twice',detail:'Tap Beef to start cooking. Tap it again when it says ready.'},
+      {label:'3. Match the sides and serve',detail:'Green ticks on the ticket show what’s already on your tray.'}
+    ]);},
     down(p){
       const slot=api.w/Math.max(queue.length+1,2);
       const i=Math.round(p.x/slot)-1;
-      if(p.y>api.h*.11&&p.y<api.h*.64&&queue[i]){selected=queue[i].id;api.tone('button');}
+      if(p.y>api.h*.435&&p.y<api.h*.67&&queue[i]){selected=queue[i].id;api.tone('button');}
     }
   };
 });

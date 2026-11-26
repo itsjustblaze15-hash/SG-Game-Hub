@@ -44,16 +44,19 @@ window.SGArcade = (() => {
       else if(window.parent!==window)window.parent.postMessage({type:'sg-mobile-exit'},location.origin);
       else location.href='../../';
     }
+    $('back-to-sg').onclick=exit;
+    for(const event of ['contextmenu','selectstart','copy','dragstart']){
+      document.addEventListener(event,e=>e.preventDefault());
+    }
     function button(text,cb,primary=false){
       const el=document.createElement('button');el.type='button';el.textContent=text;
       if(primary)el.className='main-action';
       el.onclick=()=>{unlockSound();tone('button');cb();};return el;
     }
     if(!window.SGAppleMobile()){
-      const title=document.createElement('h2');title.textContent='Mobile Exclusive';
-      const text=document.createElement('p');text.className='desc';text.textContent='Exclusively available on iPhone and iPad.';
+      const title=document.createElement('h2');title.textContent='Play on iPhone or iPad';
+      const text=document.createElement('p');text.className='desc';text.textContent=config.title;
       panel.replaceChildren(title,text);
-      const back=document.createElement('button');back.type='button';back.textContent='Return to SG';back.onclick=exit;panel.append(back);
       return;
     }
     let stored={};
@@ -97,15 +100,33 @@ window.SGArcade = (() => {
       },
       hud(entries){
         const joined=JSON.stringify(entries);if(joined===statline)return;statline=joined;
-        stats.replaceChildren(...entries.map(([name,value])=>{
+        stats.replaceChildren(...entries.map(([name,value,style])=>{
           const item=document.createElement('span');item.className='stat';item.textContent=name;
-          const val=document.createElement('b');val.textContent=value;item.append(val);return item;
+          const val=document.createElement('b');val.textContent=value;
+          if(style?.color){item.style.setProperty('--stat-color',style.color);item.classList.add('stat-tinted');}
+          item.append(val);return item;
         }));
       },
       controls(entries=[]){
-        toolbar.replaceChildren(...entries.map(({label,action,id})=>{
-          const b=button(label,()=>{if(screen==='play')action();});if(id)b.id=id;return b;
-        }));
+        const groups=new Map(), elements=[];
+        for(const {label,action,id,icon,group,active} of entries){
+          const b=button('',()=>{if(screen==='play')action();});
+          if(id)b.id=id;
+          if(active){b.classList.add('active');b.setAttribute('aria-pressed','true');}
+          if(icon){
+            const art=document.createElement('span');art.className='control-icon';art.setAttribute('aria-hidden','true');
+            if(typeof icon==='string')art.textContent=icon;else art.append(icon);
+            b.append(art);
+          }
+          const words=document.createElement('span');words.className='control-label';words.textContent=label;b.append(words);
+          if(!group){elements.push(b);continue;}
+          if(!groups.has(group)){
+            const row=document.createElement('div');row.className='control-group';row.dataset.group=group;
+            groups.set(group,row);elements.push(row);
+          }
+          groups.get(group).append(b);
+        }
+        toolbar.replaceChildren(...elements);
       },
       end(score,headline,detail,action=null){
         if(screen!=='play')return;
@@ -113,8 +134,8 @@ window.SGArcade = (() => {
         if(record){state.best[mode]=score;tone('level');}
         else tone('fail');
         save();display('end');
-        title(headline,detail+(record?' New personal best.':''),'Run complete');
-        actions([action?[action.label,()=>{action.action();start();},true]:['Play again',start,true],...(action?[['Replay',start]]:[]),['Main menu',menu],['Return to SG',exit]]);
+        title(headline,detail+(record?' New personal best.':''));
+        actions([action?[action.label,()=>{action.action();start();},true]:['Play again',start,true],...(action?[['Replay',start]]:[]),['Main menu',menu]]);
       },
       showChoices,menu
     };
@@ -176,7 +197,7 @@ window.SGArcade = (() => {
         panel.append(modes);
       }
       actions([['Play',start,true],[config.unlockTitle??'Unlockables',()=>game.unlocks()],['High scores',records]]);
-      actions([['Settings',()=>settings(menu)],['Return to SG',exit]]);
+      actions([['Settings',()=>settings(menu)],...(game.guide?[['How to play',game.guide]]:[])]);
     }
     function start(){
       display('play');elapsed=0;statline='';stats.replaceChildren();context.controls();
@@ -188,7 +209,7 @@ window.SGArcade = (() => {
       actions([['Resume',()=>{display('play');last=0;},true],['Restart',start],['Settings',()=>settings(()=>{
         screen='play';pause();
       })]]);
-      actions([['Main menu',menu],['Return to SG',exit]]);
+      actions([['Main menu',menu]]);
     }
     function size(){
       const rect=c.getBoundingClientRect();if(!rect.width||!rect.height)return;
@@ -229,7 +250,6 @@ window.SGArcade = (() => {
     });
     addEventListener('sg-native-background',pause);
     $('pause').onclick=()=>{tone('button');pause();};
-    $('back-to-sg').onclick=exit;
     const watcher=new ResizeObserver(size);watcher.observe(c);
     function frame(ms){
       const now=ms/1000,dt=last?clamp(now-last,0,.035):0;last=now;lastNote=now;

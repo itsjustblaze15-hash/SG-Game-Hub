@@ -45,19 +45,19 @@ async function testMac(base){
     const page=await browser.newPage();
     const seen=errors(page);
     await page.goto(base);
-    await page.locator('#mobile-category').click();
-    assert.equal(await page.locator('.game-tile').count(),5);
+    assert.equal(await page.getByText('Mobile Exclusive',{exact:true}).count(),0);
+    assert(await page.locator('.game-tile').count()>20);
     for(const game of games){
       await pick(page,game);
-      assert.equal(await page.locator('#play').textContent(),'Mobile Exclusive');
+      assert(await page.locator('#play').isHidden());
       assert(await page.locator('#play').isDisabled());
-      assert.equal(await page.locator('#availability').textContent(),'Exclusively available on iPhone and iPad.');
+      assert(await page.locator('#availability').isHidden());
+      assert.equal(await page.getByRole('img',{name:'iPhone: playable',exact:true}).last().count(),1);
       assert.deepEqual(await page.locator('#game-cover').evaluate(async img=>{await img.decode();return [img.naturalWidth,img.naturalHeight];}),[2048,768]);
       assert(await page.locator('#player').isHidden());
       await closeDetails(page);
     }
-    await shot(page,'mac-category');
-    await page.locator('#mobile-category').click();
+    await shot(page,'mac-library');
     assert(await page.locator('.game-tile').count()>20);
     await pick(page,'eight-ball');
     assert(await page.locator('#play').isEnabled());
@@ -67,7 +67,7 @@ async function testMac(base){
     assert(await page.locator('#player').isHidden());
     for(const game of games){
       await page.goto(base+'games/'+game+'/');
-      assert.equal(await page.locator('#menu-panel h2').textContent(),'Mobile Exclusive');
+      assert.equal(await page.locator('#menu-panel h2').textContent(),'Play on iPhone or iPad');
       assert.equal(await page.getByRole('button',{name:'Play',exact:true}).count(),0);
     }
     assert.deepEqual(seen,[]);
@@ -80,32 +80,51 @@ async function testMobile(browser,base,device,landscape,ids,offline){
     await page.goto(base);
     const deviceInfo = await page.evaluate(() => ({mobile:window.SGAppleMobile(),ua:navigator.userAgent,platform:navigator.platform,touch:navigator.maxTouchPoints}));
     assert(deviceInfo.mobile, JSON.stringify(deviceInfo));
-    await page.locator('#mobile-category').tap();
-    await page.waitForFunction(()=>document.querySelector('#mobile-offline-status').textContent==='Ready for offline play');
+    assert.equal(await page.getByText('Mobile Exclusive',{exact:true}).count(),0);
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     if(offline){
       disconnected=true;
       await page.reload();
-      await page.locator('#mobile-category').tap();
     }
     for(const id of ids){
       await pick(page,id);await tap(page,'Play now');
       const frame=page.frameLocator('#player-frame iframe');
       await frame.locator('#menu-panel h1').waitFor();
+      assert.equal(await frame.getByRole('button',{name:'Return to SG'}).count(),1);
+      assert(await frame.locator('#back-to-sg').isVisible());
+      if(id==='color-switch'){
+        await tap(frame,'How to play');
+        await frame.getByText('2. Match the middle color',{exact:true}).waitFor();
+        await tap(frame,'Back');
+      }
       await shot(page,device.replaceAll(' ','-')+'-'+id+'-menu');
       await tap(frame,'Settings');await tap(frame,'Music on');await tap(frame,'Back');await tap(frame,'Play');
       const canvas=frame.locator('#board');
       await canvas.waitFor();
+      const selection=await canvas.evaluate(c=>{
+        const css=getComputedStyle(c.closest('#arcade'));
+        return {select:css.getPropertyValue('user-select')||css.getPropertyValue('-webkit-user-select'),
+          callout:css.getPropertyValue('-webkit-touch-callout'),
+          canceled:['copy','selectstart','contextmenu','dragstart'].map(type=>
+            !c.dispatchEvent(new Event(type,{bubbles:true,cancelable:true})))};
+      });
+      assert.equal(selection.select,'none',JSON.stringify(selection));
+      assert(!selection.callout||selection.callout==='none',JSON.stringify(selection));
+      assert(selection.canceled.every(Boolean),JSON.stringify(selection));
       await shot(page,device.replaceAll(' ','-')+'-'+id+'-play');
       assert(await frame.locator('#stats').isVisible());
       const rect=await canvas.boundingBox();
       assert(rect.width>240&&rect.height>220);
       if(id==='color-switch'){
-        for(let i=0;i<13;i++){
+        for(let i=0;i<8;i++){
           await page.touchscreen.tap(rect.x+rect.width*.5,rect.y+rect.height*.55);
-          await new Promise(r=>setTimeout(r,150));
+          await new Promise(r=>setTimeout(r,130));
         }
+        assert.match(await frame.locator('#stats').textContent(),/Ball(?:Cyan|Pink|Purple)/);
       }else if(id==='burger-rush'){
+        assert.equal(await frame.locator('#station-bun-bottom .control-icon canvas').count(),1);
+        assert.equal(await frame.locator('[data-group=stations] .control-icon').count(),4);
+        assert.match(await frame.locator('.arcade-sr').textContent(),/Bottom bun, Beef, Cheese, Top bun/);
         await tap(frame,'Bottom bun');await tap(frame,'Beef');
         const button=frame.getByRole('button',{name:'Beef · ready',exact:true});await button.waitFor({timeout:12000});await button.tap();
         await tap(frame,'Cheese');await tap(frame,'Top bun');await tap(frame,'Serve');
@@ -113,12 +132,16 @@ async function testMobile(browser,base,device,landscape,ids,offline){
       }else{
         if(id==='highway-rush'){
           await tap(frame,'Nitro');
-          assert(await frame.locator('#nitro').isDisabled());
+          await frame.locator('#nitro:disabled').waitFor();
         }
         const x=rect.x+rect.width*.47,y=rect.y+rect.height*.60;
         await page.mouse.move(x,y);await page.mouse.down();
         await page.mouse.move(x+90,y-12,{steps:9});
-        await new Promise(r=>setTimeout(r,320));await page.mouse.up();
+        await new Promise(r=>setTimeout(r,490));await page.mouse.up();
+        if(id==='hole-city'){
+          await frame.locator('#stats').getByText(/Rank/).waitFor();
+          await shot(page,device.replaceAll(' ','-')+'-hole-city-race');
+        }
       }
       if(await frame.locator('#pause').isVisible()){
         await frame.getByRole('button',{name:'Pause game'}).tap();
@@ -130,10 +153,10 @@ async function testMobile(browser,base,device,landscape,ids,offline){
       let stored=await page.evaluate(id=>JSON.parse(localStorage.getItem('sg-arcade-v1:'+id)),id);
       assert.equal(stored.settings.music,false);
       if(id==='burger-rush')assert(stored.served>=1);
-      if(id==='color-switch')assert(stored.gates>=1,'a touch-controlled run should clear a ring');
+      if(id==='color-switch')assert(stored.gates>=2,'a touch-controlled run should clear both practice bars');
       if(id==='hole-city')assert(stored.total>=1,'a city run should swallow an object');
       await page.close();page=await context.newPage();page.on('pageerror',error=>seen.push(error.message));
-      await page.goto(base);await page.locator('#mobile-category').tap();
+      await page.goto(base);
       await pick(page,id);await tap(page,'Play now');
       const reloaded=page.frameLocator('#player-frame iframe');
       await tap(reloaded,'Settings');assert(await reloaded.getByRole('button',{name:'Music off',exact:true}).count());
@@ -143,17 +166,34 @@ async function testMobile(browser,base,device,landscape,ids,offline){
     assert.deepEqual(seen,[]);
   }finally{disconnected=false;await context.close();}
 }
+async function resultButtons(browser,base){
+  const context=await browser.newContext(mobile('iPhone 15',true));
+  try{
+    const page=await context.newPage();
+    await page.goto(base);await pick(page,'hole-city');await tap(page,'Play now');
+    const frame=page.frameLocator('#player-frame iframe');
+    await tap(frame,'Endless');await tap(frame,'Play');await tap(frame,'Finish run');
+    await frame.getByRole('heading',{name:'City tour finished',exact:true}).waitFor();
+    assert.equal(await frame.locator('.menu-actions button').allTextContents().then(labels=>labels.join('|')),'Play again|Main menu');
+    assert.equal(await frame.getByRole('button',{name:'Return to SG'}).count(),1);
+    assert.equal(await frame.locator('#back-to-sg').textContent(),'SG');
+    await shot(page,'iPhone-15-hole-city-result');
+    await tap(frame,'Return to SG');
+    await page.locator('#player').waitFor({state:'hidden'});
+  }finally{await context.close();}
+}
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port+'/sg/';
   try{
-    await testMac(base);console.log('Chromium Mac: five untouched covers, category, all direct routes and launch controls blocked; Eight Ball still launches.');
+    await testMac(base);console.log('Chromium Mac: five untouched covers with device icons, no badges or category, blocked direct routes, and an existing game still launches.');
     const browser=await webkit.launch();
     try{
       await testMobile(browser,base,'iPhone 15',true,games.filter(id=>!portrait.has(id)),true);
       await testMobile(browser,base,'iPhone 15',false,games.filter(id=>portrait.has(id)),true);
       console.log('WebKit iPhone profile: all five launch offline, accept input, save settings across close/reopen, and return to SG.');
       await testMobile(browser,base,'iPad Mini',true,games,true);
+      await resultButtons(browser,base);
       console.log('WebKit iPad profile: all five load offline, accept input, save settings across close/reopen, and return to SG.');
     }finally{await browser.close();}
   }finally{server.closeAllConnections();server.close();}

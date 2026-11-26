@@ -19,9 +19,6 @@ const phoneLayout = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-
 const refreshHub = document.querySelector('#refresh-hub');
 const isAppleMobile = /iPhone|iPad/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const mobileCategory = document.querySelector('#mobile-category');
-const mobileOffline = document.querySelector('#mobile-offline-status');
-let mobileOnly = false;
 const isNewArcadeDevice = window.SGAppleMobile();
 
 function reloadHub(build) {
@@ -183,6 +180,7 @@ function syncPlayerOrientation() {
   frame.title = playingGame.name;
   const game = playingGame;
   const source = new URL(game.play, location.href);
+  if (game.mobileExclusive) source.searchParams.set('v', document.querySelector('meta[name="sg-build"]').content);
   if (repairedGames.has(game.id)) source.searchParams.set('sg-version', phoneBuild);
   if (game.id === 'little-garden') source.searchParams.set('sg-version', document.querySelector('meta[name="sg-build"]').content);
   const refreshed = new URL(location.href).searchParams.get('sg-refresh');
@@ -333,13 +331,11 @@ function openGame(game) {
   document.querySelector('#game-description').textContent = game.description;
   document.querySelector('#game-devices').replaceChildren(devices(game));
   const playable = canPlay(game);
-  play.hidden = !playable && !game.mobileExclusive;
+  play.hidden = !playable;
   play.disabled = !playable;
-  play.textContent = !playable && game.mobileExclusive ? 'Mobile Exclusive' : 'Play now';
   const availability = document.querySelector('#availability');
-  availability.hidden = playable;
-  availability.textContent = game.mobileExclusive ? 'Exclusively available on iPhone and iPad.'
-    : game.id === 'little-garden'
+  availability.hidden = playable || !!game.mobileExclusive;
+  availability.textContent = game.id === 'little-garden'
     ? 'Playable on iPhone and iPad.'
     : 'Playable in SG on Mac.';
   dialog.showModal();
@@ -365,14 +361,7 @@ function gameCard(game) {
   const name = document.createElement('span');
   name.className = 'game-name';
   name.textContent = game.name;
-  copy.append(name);
-  if (game.mobileExclusive) {
-    const badge = document.createElement('span');
-    badge.className = 'exclusive-badge';
-    badge.textContent = 'Mobile Exclusive';
-    copy.append(badge);
-  }
-  copy.append(devices(game));
+  copy.append(name, devices(game));
   card.append(cover, copy);
   tile.append(card);
   if (editing) tile.append(moveControls(game, order.indexOf(game.id)));
@@ -382,7 +371,7 @@ function gameCard(game) {
 function render() {
   const query = search.value.trim().toLocaleLowerCase();
   const results = order.map(id => games.find(game => game.id === id))
-    .filter(game => (!mobileOnly || game.mobileExclusive) && game.name.toLocaleLowerCase().includes(query));
+    .filter(game => game.name.toLocaleLowerCase().includes(query));
   count.textContent = results.length;
   empty.hidden = results.length !== 0;
   grid.replaceChildren(...results.map(gameCard));
@@ -400,30 +389,13 @@ reorder.addEventListener('click', () => {
   reorder.textContent = editing ? 'Done' : 'Reorder';
   reorderHelp.hidden = !editing;
   search.disabled = editing;
-  mobileCategory.disabled = editing;
-  if (editing) {
-    search.value = '';
-    mobileOnly = false;
-    document.querySelector('.library-heading h1').firstChild.textContent = 'All games ';
-    mobileCategory.setAttribute('aria-pressed', 'false');
-    mobileOffline.hidden = true;
-  }
+  if (editing) search.value = '';
   render();
 });
 search.addEventListener('input', render);
-mobileCategory.addEventListener('click', () => {
-  mobileOnly = !mobileOnly;
-  mobileCategory.setAttribute('aria-pressed', String(mobileOnly));
-  document.querySelector('.library-heading h1').firstChild.textContent = mobileOnly ? 'Mobile Exclusive ' : 'All games ';
-  mobileOffline.hidden = !mobileOnly || !isNewArcadeDevice;
-  render();
-});
 if ('serviceWorker' in navigator) {
-  mobileOffline.textContent = 'Preparing offline play…';
-  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => {
-    mobileOffline.textContent = 'Ready for offline play';
-  }).catch(() => { mobileOffline.textContent = 'Offline setup unavailable'; });
-} else mobileOffline.textContent = 'Play offline in the installed SG app';
+  navigator.serviceWorker.register('./sw.js').catch(error => console.warn('SG could not set up offline play', error));
+}
 dialog.addEventListener('click', event => {
   if (event.target === dialog) dialog.close();
 });
