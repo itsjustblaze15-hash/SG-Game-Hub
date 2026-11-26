@@ -24,6 +24,7 @@ const groups={
   'Sauces':['ketchup','mustard','special'],
   'Sides':['fries','rings','soda','shake','nuggets']
 };
+const stationNames=Object.keys(groups), ingredientKeys='zxcvb';
 const stationIcons={Grill:'🔥',Produce:'🥬',Sauces:'🫙',Sides:'🍟'};
 const thumbnails=new Map();
 function ingredientArt(key){
@@ -44,7 +45,7 @@ const steps=({
   'bun-bottom':'Bun','bun-top':'Top','beef':'Beef','chicken':'Chicken','cheese':'Cheese','lettuce':'Lettuce','tomato':'Tomato','onion':'Onion','pickle':'Pickle',
   'ketchup':'Ketchup','mustard':'Mustard','special':'SG sauce','fries':'Fries','rings':'Rings','soda':'Soda','shake':'Shake','nuggets':'Nuggets'
 });
-mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',description:'Follow the pictures, stack the burger and serve it while it’s hot.',orientation:'landscape',modes:['Shift'],unlockTitle:'Restaurant & recipes',defaults:{cash:0,shift:1,unlocked:1,grill:0,patience:0,location:0,theme:0,decor:[0],served:0},root:55,tune:[0,4,7,9,7,4,2,7]},api=>{
+mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',description:'Follow the pictures, stack the burger and serve it while it’s hot.',desktopHelp:'Click the kitchen controls or use 1–4 for stations, Z–B for ingredients, and Return to serve.',orientation:'landscape',modes:['Shift'],unlockTitle:'Restaurant & recipes',defaults:{cash:0,shift:1,unlocked:1,grill:0,patience:0,location:0,theme:0,decor:[0],served:0},root:55,tune:[0,4,7,9,7,4,2,7]},api=>{
   const fx=particleKit(116);
   const orderStatus=document.createElement('p');orderStatus.className='arcade-sr';orderStatus.setAttribute('role','status');
   document.getElementById('arcade').append(orderStatus);
@@ -73,13 +74,16 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
   function hud(){
     api.hud([['Served',served+'/'+goal],['Shift',level],['Time',Math.max(0,Math.ceil(duration-clock))],['Earned','$'+cash]]);
   }
+  function chooseStation(name){station=name;refresh();}
+  function availableIngredients(){return groups[station].filter(key=>(thresholds[key]??1)<=level);}
+  function clearTray(){stack=[];sides=[];api.notice('Tray cleared');}
   function refresh(){
-    const tabs=Object.keys(groups).map(name=>({label:name,icon:stationIcons[name],group:'stations',active:name===station,action(){station=name;refresh();}}));
-    const keys=groups[station].filter(key=>(thresholds[key]??1)<=level);
+    const tabs=stationNames.map((name,i)=>({label:name,icon:stationIcons[name],group:'stations',shortcut:String(i+1),active:name===station,action:()=>chooseStation(name)}));
+    const keys=availableIngredients();
     api.controls([
-      ...tabs,{label:'Clear tray',icon:'🧹',group:'actions',action(){stack=[];sides=[];api.notice('Tray cleared');}},
-      {label:'Serve',icon:'🍽️',group:'actions',action:serve,id:'serve-order'},
-      ...keys.map(key=>({label:names[key],icon:ingredientArt(key).cloneNode(),group:'ingredients',action:()=>operate(key),id:'station-'+key}))
+      ...tabs,{label:'Clear tray',icon:'🧹',group:'actions',action:clearTray,shortcut:'⌫'},
+      {label:'Serve',icon:'🍽️',group:'actions',action:serve,id:'serve-order',shortcut:'Return'},
+      ...keys.map((key,i)=>({label:names[key],icon:ingredientArt(key).cloneNode(),group:'ingredients',shortcut:ingredientKeys[i].toUpperCase(),action:()=>operate(key),id:'station-'+key}))
     ]);
     document.getElementById('serve-order')?.classList.add('main-action');
     for(const key of keys){
@@ -286,10 +290,23 @@ mount({title:'Burger Rush',highlight:'Rush',category:'Restaurant arcade',descrip
         action(){if(!own){api.state.cash-=price;api.state.decor.push(i);}api.state.theme=i;api.save();decor();}};
     }),catalog);
   }
-  return {start,update,draw,unlocks:catalog,recordText:()=>api.state.served+' lifetime orders · $'+api.state.cash+' banked',
+  function key(key,down,repeat){
+    const stationIndex='1234'.indexOf(key),ingredientIndex=ingredientKeys.indexOf(key);
+    if(key!=='Enter'&&key!=='Backspace'&&stationIndex<0&&ingredientIndex<0)return false;
+    if(!down||repeat)return true;
+    if(key==='Enter')serve();
+    else if(key==='Backspace')clearTray();
+    else if(stationIndex>=0)chooseStation(stationNames[stationIndex]);
+    else{
+      const ingredient=availableIngredients()[ingredientIndex];
+      if(ingredient)operate(ingredient);
+    }
+    return true;
+  }
+  return {start,update,draw,key,unlocks:catalog,recordText:()=>api.state.served+' lifetime orders · $'+api.state.cash+' banked',
     guide(){api.showChoices('Making a burger','Match the pictures on the ticket, in order.',[
       {label:'1. Start with the bottom bun',detail:'Add each pictured ingredient from left to right.'},
-      {label:'2. Tap the grill twice',detail:'Tap Beef to start cooking. Tap it again when it says ready.'},
+      {label:'2. Tap the grill twice',detail:api.desktop?'Choose Beef to start cooking. Choose it again when it says ready.':'Tap Beef to start cooking. Tap it again when it says ready.'},
       {label:'3. Match the sides and serve',detail:'Green ticks on the ticket show what’s already on your tray.'}
     ]);},
     down(p){

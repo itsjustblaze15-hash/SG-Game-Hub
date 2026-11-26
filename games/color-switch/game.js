@@ -33,10 +33,11 @@ function crossingColor(gate,time){
 mount({
   title:'Color Switch',highlight:'Switch',category:'Neon arcade',
   description:'Tap to hop. Go through the bar when it matches your ball.',
+  desktopHelp:'Press Space or click to hop. Pass through the middle when its color matches your ball.',
   orientation:'portrait',modes:['Endless','Level','Challenge'],unlockTitle:'Ball lab & levels',
   defaults:{diamonds:0,ball:0,trail:0,unlocked:1,level:1,gates:0},root:50,tune:[0,12,7,10,0,12,7,15]
 },api=>{
-  const fx=particleKit(108);
+  const fx=particleKit(108), keys=new Set();
   let altitude,velocity,camera,time,active,points,diamonds,cleared,course,trail,color,level,limit,lastGate,
     pressed,repeatAt,nextGate,problem,deadTime,guideTip,resting;
 
@@ -53,7 +54,7 @@ mount({
     trail=[];color=0;pressed=false;repeatAt=0;nextGate=0;problem=null;deadTime=0;
     level=api.state.level;limit=api.mode==='Level'?4+level:api.mode==='Challenge'?7:0;
     course=Array.from({length:8},(_,i)=>makeGate(i));lastGate=7;
-    guideTip='Tap anywhere to hop';resting=false;fx.clear();hud();
+    guideTip=api.desktop?'Press Space or click to hop':'Tap anywhere to hop';resting=false;keys.clear();fx.clear();hud();
   }
   function hud(){
     const values=[['Ball',colorNames[color],{color:colors[color]}],['Score',points],['Diamonds',diamonds]];
@@ -107,7 +108,7 @@ mount({
     }
     if(!active)return;
     time+=dt;
-    if(pressed&&time>=repeatAt)hop();
+    if((pressed||keys.size)&&time>=repeatAt)hop();
     const gate=course.find(item=>item.index===nextGate);
     const before=altitude;
     altitude=Math.max(0,altitude+velocity*dt);
@@ -133,8 +134,8 @@ mount({
     camera=Math.max(camera,altitude-74);
     const target=course.find(item=>item.index===nextGate);
     if(resting||target.y-altitude<58)
-      guideTip=readyToHop(target)?'Matching color · tap to pass':'Wait for '+colorNames[color];
-    else if(cleared===0)guideTip='Keep tapping to reach the yellow bar';
+      guideTip=readyToHop(target)?(api.desktop?'Matching color · hop now':'Matching color · tap to pass'):'Wait for '+colorNames[color];
+    else if(cleared===0)guideTip=api.desktop?'Hold Space to reach the yellow bar':'Keep tapping to reach the yellow bar';
     else if(!course.find(item=>item.index===nextGate-1)?.picked)guideTip='Climb to the prism to switch colors';
     else guideTip=cleared<3?'The platform catches you while you wait':'';
     const length=trails[api.state.trail][2];
@@ -259,12 +260,19 @@ mount({
   }
   function guide(){
     api.showChoices('How to play','The ball climbs straight up the middle.',[
-      {label:'1. Tap to hop',detail:'Tap anywhere. Hold to keep hopping.'},
+      {label:'1. Hop upward',detail:api.desktop?'Use Space, the up arrow, or click. Hold to keep hopping.':'Tap anywhere. Hold to keep hopping.'},
       {label:'2. Match the middle color',detail:'Hop through the white frame when it shows the color of your ball.'},
       {label:'3. Land and wait',detail:'The little platform catches you below the bar. Pick up a prism above the bar to swap colors.'}
     ]);
   }
+  function key(key,down){
+    if(key!==' '&&key!=='ArrowUp')return false;
+    if(down&&!keys.has(key)){keys.add(key);hop();}
+    if(!down)keys.delete(key);
+    return true;
+  }
   function stop(){pressed=false;}
-  return {start,update,draw,unlocks,guide,down(){pressed=true;hop();},up:stop,cancel:stop,recordText:()=>api.state.gates+' lifetime gates · '+api.state.diamonds+' diamonds'};
+  return {start,update,draw,unlocks,guide,key,down(){pressed=true;hop();},up:stop,cancel(){stop();keys.clear();},
+    recordText:()=>api.state.gates+' lifetime gates · '+api.state.diamonds+' diamonds'};
 });
 })();

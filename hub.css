@@ -256,7 +256,7 @@ body.playing { overflow: hidden; }
   .play { margin-top: 10px; }
 }
 
-.mobile-exclusive .game-card>img,.mobile-details .detail-cover>img{aspect-ratio:8/3;object-fit:contain;object-position:center}
+.arcade-card .game-card>img,.arcade-details .detail-cover>img{aspect-ratio:8/3;object-fit:contain;object-position:center}
 .arcade-player:has(iframe) .player-bar{display:none}
 .arcade-player:has(.waiting-for-landscape) .player-bar{display:flex}
-@media (orientation:landscape) and (max-height:550px){.mobile-details .detail-cover>img{height:100%;aspect-ratio:auto;object-fit:contain}}
+@media (orientation:landscape) and (max-height:550px){.arcade-details .detail-cover>img{height:100%;aspect-ratio:auto;object-fit:contain}}

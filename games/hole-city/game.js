@@ -126,10 +126,12 @@ function tallArt(g,p){
 
 mount({
   title:'Hole City',highlight:'City',category:'City takeover',description:'Roam the waterfront, grow through whole neighborhoods, and race five rival holes.',
+  desktopHelp:'Move with WASD or the arrow keys. You can also click and drag to steer.',
   orientation:'landscape',modes:['Timed','Endless','City Destruction'],unlockTitle:'Districts & vortex skins',
   defaults:{maxSize:0,total:0,map:0,skin:0,destroyed:0},root:46,tune:[0,3,7,10,7,5,3,10]
 },api=>{
-  const fx=particleKit(110);
+  const fx=particleKit(110), keys=new Set();
+  const directions={ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right',ArrowUp:'up',w:'up',ArrowDown:'down',s:'down'};
   let world,worldIndex=-1,overview,levelScene,demo,player,rivals=[],props=[],cars=[],origin=null,
     vector={x:0,y:0},view,round=0,limit=0,done=false,tip=true,saveAt=0,savePending=false,hudAt=0,rng;
   const actor=(base,x,y,size)=>({...base,x,y,r:size,size,points:0,objects:0,buildings:0,target:null,think:base.think??0,phase:0});
@@ -156,7 +158,7 @@ mount({
     ({props,cars}=generate(world,worldIndex));
     rng=worldRng(1571+worldIndex*4096);
     round=0;limit=mode==='Timed'?135:mode==='City Destruction'?185:0;
-    origin=null;vector={x:0,y:0};done=false;tip=true;saveAt=0;savePending=false;hudAt=0;
+    origin=null;vector={x:0,y:0};keys.clear();done=false;tip=true;saveAt=0;savePending=false;hudAt=0;
     player=actor({name:'You',color:skins[api.state.skin][1],isPlayer:true},world.spawn.x,world.spawn.y,mode==='City Destruction'?32:14);
     view=camera(player.x,player.y,1.05);
     rivals=rivalsData.map(([name,color],i)=>{
@@ -289,7 +291,14 @@ mount({
     round+=dt;
     if(limit&&round>=limit){finish('Time is up');return;}
     if(api.mode==='City Destruction'&&player.buildings>=6){finish('Skyline cleared');return;}
-    move(player,vector.x,vector.y,dt,168+Math.min(player.r,120)*.40);
+    let dx=vector.x,dy=vector.y;
+    if(keys.size){
+      const held=new Set([...keys].map(key=>directions[key]));
+      const x=Number(held.has('right'))-Number(held.has('left'));
+      const y=Number(held.has('down'))-Number(held.has('up'));
+      dx=x-y*shear/tilt;dy=y/tilt;
+    }
+    move(player,dx,dy,dt,168+Math.min(player.r,120)*.40);
     for(const rival of rivals)moveRival(rival,dt);
     const units=[player,...rivals];
     for(const unit of units)unit.r=lerp(unit.r,unit.size,1-Math.exp(-dt*5));
@@ -387,7 +396,7 @@ mount({
         drawMinimap(g);if(w>735)drawLeaders(g);
         if(tip&&round<11){
           box(g,w/2-107,h*.84-18,214,34,12,'#201535dc');
-          label(g,'Drag to move',w/2,h*.84,19,'#fff2ff');
+          label(g,api.desktop?'WASD or arrows to move':'Drag to move',w/2,h*.84,19,'#fff2ff');
         }
         if(origin&&Math.hypot(vector.x,vector.y)>.1){
           ellipse(g,origin.x,origin.y,32,32,'#1e133b6b');
@@ -404,8 +413,13 @@ mount({
       {label:'Street sweep',detail:api.state.total>=100?'Achievement earned':'Swallow 100 total objects ('+api.state.total+'/100)'}
     ]);
   }
-  function cancel(){origin=null;vector.x=vector.y=0;}
-  return {start,update,draw,unlocks,recordText:()=>api.state.maxSize+' size record · '+api.state.total+' lifetime objects',
-    down(p){origin=p;},move:movement,up:cancel,cancel};
+  function stopPointer(){origin=null;vector.x=vector.y=0;}
+  function key(key,down){
+    if(!Object.hasOwn(directions,key))return false;
+    if(down){keys.add(key);tip=false;}else keys.delete(key);
+    return true;
+  }
+  return {start,update,draw,unlocks,key,recordText:()=>api.state.maxSize+' size record · '+api.state.total+' lifetime objects',
+    down(p){origin=p;},move:movement,up:stopPointer,cancel(){stopPointer();keys.clear();}};
 });
 })();

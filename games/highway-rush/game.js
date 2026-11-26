@@ -14,7 +14,7 @@ const traffic=[['sedan','#dae8ef'],['truck','#c7c6be'],['suv','#549deb'],['muscl
 const day=()=>new Date().toLocaleDateString('en-CA');
 function objective(){const n=[...day()].reduce((a,k)=>a+k.charCodeAt(0),0)%3;return [['Collect 24 coins',24,28,'coins'],['Drive 1,600 m',1600,35,'distance'],['Make 8 near misses',8,36,'near']][n];}
 
-mount({title:'Highway Rush',highlight:'Rush',category:'Traffic racer',description:'Weave between lanes, collect gold and hit nitro when the highway opens up.',orientation:'portrait',modes:['Highway','Daily'],unlockTitle:'Garage & routes',defaults:{coins:0,car:0,owned:[0],paints:{},upgrades:{},route:0,dist:0,claimed:''},root:43,tune:[0,0,7,3,0,10,7,3],format:n=>n+' m'},api=>{
+mount({title:'Highway Rush',highlight:'Rush',category:'Traffic racer',description:'Weave between lanes, collect gold and hit nitro when the highway opens up.',desktopHelp:'Use the arrow keys or A and D to change lanes. Press Space for nitro.',orientation:'portrait',desktopWide:true,modes:['Highway','Daily'],unlockTitle:'Garage & routes',defaults:{coins:0,car:0,owned:[0],paints:{},upgrades:{},route:0,dist:0,claimed:''},root:43,tune:[0,0,7,3,0,10,7,3],format:n=>n+' m'},api=>{
   const fx=particleKit(135);
   let backdrop,route=0,position=1,lane=1,meters=0,score=0,totalCoins=0,near=0,charge=0,nitro=0,trafficList=[],clock=0,spawnAt=.7,travel=0,origin=null,impact=0,crashed=false,tip=true,flash=0,daily=null;
   const horizon=()=>api.h*.32;
@@ -30,7 +30,7 @@ mount({title:'Highway Rush',highlight:'Rush',category:'Traffic racer',descriptio
   function start(mode){
     route=api.state.route;position=lane=1;meters=score=totalCoins=near=0;charge=.43;nitro=0;trafficList=[];clock=0;spawnAt=.64;travel=0;origin=null;impact=0;crashed=false;tip=true;flash=0;
     daily=mode==='Daily'?objective():null;fx.clear();cachedArt();
-    api.controls([{label:'◀ Lane',action:()=>change(-1)},{label:'Nitro',action:boost,id:'nitro'},{label:'Lane ▶',action:()=>change(1)}]);hud();
+    api.controls([{label:'◀ Lane',action:()=>change(-1),shortcut:'←'},{label:'Nitro',action:boost,id:'nitro',shortcut:'Space'},{label:'Lane ▶',action:()=>change(1),shortcut:'→'}]);hud();
   }
   function change(direction){if(!crashed){lane=clamp(lane+direction,0,2);tip=false;}}
   function boost(){
@@ -164,7 +164,7 @@ mount({title:'Highway Rush',highlight:'Rush',category:'Traffic racer',descriptio
     if(flash>0){
       g.fillStyle=crashed?'rgba(255,71,63,'+flash*.35+')':'rgba(68,161,255,'+flash*.32+')';g.fillRect(0,0,api.w,api.h);
     }
-    if(screen==='play'&&tip&&clock<6)label(g,'Swipe to change lanes',api.w/2,api.h*.57,22,'#fff2da');
+    if(screen==='play'&&tip&&clock<6)label(g,api.desktop?'← →  Change lanes':'Swipe to change lanes',api.w/2,api.h*.57,22,'#fff2da');
   }
   function garage(){
     const i=api.state.car,up=upgrade(),cost=60+up*65;
@@ -186,6 +186,14 @@ mount({title:'Highway Rush',highlight:'Rush',category:'Traffic racer',descriptio
     api.showChoices('Paint shop',vehicles[i][0],paint.map((color,n)=>({label:['Crimson','Marigold','Glacier','Jade','Pearl','Ultraviolet','Graphite'][n],detail:color===carColor(i)?'Equipped':'Apply finish',selected:color===carColor(i),action(){api.state.paints[i]=color;api.save();paints();}})),garage);
   }
   return {start,update,draw,unlocks:garage,resize(){backdrop=null;},recordText:()=>api.state.dist+' m lifetime best · '+api.state.coins+' gold in garage',
+    key(key,down,repeat){
+      const turn={ArrowLeft:-1,a:-1,ArrowRight:1,d:1}[key];
+      if(key!==' '&&!turn)return false;
+      if(down&&!repeat){
+        if(turn)change(turn);else boost();
+      }
+      return true;
+    },
     down(p){origin=p;},move(p){if(!origin)return;const dx=p.x-origin.x,dy=p.y-origin.y;if(Math.abs(dx)>28&&Math.abs(dx)>Math.abs(dy)){change(Math.sign(dx));origin=null;}else if(dy< -34&&-dy>Math.abs(dx)){boost();origin=null;}},
     up(){origin=null;},cancel(){origin=null;}
   };

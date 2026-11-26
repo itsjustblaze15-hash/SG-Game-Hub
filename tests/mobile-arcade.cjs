@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const {playDesktop}=require('./desktop-input.cjs');
 const {chromium, webkit, devices} = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 
 const root = process.env.SG_TEST_ROOT || path.resolve(__dirname, '..');
@@ -42,35 +43,40 @@ const mobile=function(device,landscape){
 async function testMac(base){
   const browser=await chromium.launch();
   try{
-    const page=await browser.newPage();
+    const page=await browser.newPage({viewport:{width:1152,height:720}});
     const seen=errors(page);
     await page.goto(base);
+    assert(await page.evaluate(()=>SGMacDesktop()));
     assert.equal(await page.getByText('Mobile Exclusive',{exact:true}).count(),0);
     assert(await page.locator('.game-tile').count()>20);
     for(const game of games){
       await pick(page,game);
-      assert(await page.locator('#play').isHidden());
-      assert(await page.locator('#play').isDisabled());
-      assert(await page.locator('#availability').isHidden());
-      assert.equal(await page.getByRole('img',{name:'iPhone: playable',exact:true}).last().count(),1);
+      assert(await page.locator('#play').isEnabled());
+      assert.equal(await page.locator('#game-devices').getByRole('img',{name:'Mac: playable',exact:true}).count(),1);
+      assert.equal(await page.locator('#game-devices').getByRole('img',{name:'iPhone: playable',exact:true}).count(),1);
       assert.deepEqual(await page.locator('#game-cover').evaluate(async img=>{await img.decode();return [img.naturalWidth,img.naturalHeight];}),[2048,768]);
-      assert(await page.locator('#player').isHidden());
-      await closeDetails(page);
+      await page.locator('#play').click();
+      const frame=page.frameLocator('#player-frame iframe');
+      await playDesktop(page,frame,game);
+      await shot(page,'mac-'+game);
+      await frame.getByRole('button',{name:'Return to SG',exact:true}).click();
+      await page.locator('#player').waitFor({state:'hidden'});
     }
-    await shot(page,'mac-library');
-    assert(await page.locator('.game-tile').count()>20);
     await pick(page,'eight-ball');
     assert(await page.locator('#play').isEnabled());
     await page.locator('#play').click();
     await page.locator('#player-frame iframe').waitFor();
     await page.getByRole('button',{name:'Back to SG',exact:true}).click();
     assert(await page.locator('#player').isHidden());
-    for(const game of games){
-      await page.goto(base+'games/'+game+'/');
-      assert.equal(await page.locator('#menu-panel h2').textContent(),'Play on iPhone or iPad');
-      assert.equal(await page.getByRole('button',{name:'Play',exact:true}).count(),0);
-    }
     assert.deepEqual(seen,[]);
+
+    const unsupported=await browser.newPage({userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36'});
+    await unsupported.addInitScript(()=>Object.defineProperty(navigator,'platform',{get:()=> 'Win32'}));
+    await unsupported.goto(base);
+    await pick(unsupported,'hole-city');
+    assert(await unsupported.locator('#play').isHidden());
+    await unsupported.goto(base+'games/hole-city/');
+    assert.equal(await unsupported.locator('#menu-panel h2').textContent(),'Play on Mac, iPhone or iPad');
   }finally{await browser.close();}
 }
 async function testMobile(browser,base,device,landscape,ids,offline){
@@ -186,7 +192,7 @@ async function resultButtons(browser,base){
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port+'/sg/';
   try{
-    await testMac(base);console.log('Chromium Mac: five untouched covers with device icons, no badges or category, blocked direct routes, and an existing game still launches.');
+    await testMac(base);console.log('Chromium Mac: all five have working desktop controls and return to SG, with original covers and the existing Eight Ball launch.');
     const browser=await webkit.launch();
     try{
       await testMobile(browser,base,'iPhone 15',true,games.filter(id=>!portrait.has(id)),true);

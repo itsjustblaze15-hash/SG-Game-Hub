@@ -6,9 +6,9 @@ const games = [
     "description": "Swipe through flying fruit, chain clean cuts and dodge bombs. Play Classic, Timed or Zen and unlock new blades and backdrops.",
     "orientation": "landscape",
     "cover": "assets/slice-master.png",
-    "macSupported": false,
+    "macSupported": true,
     "iPhoneSupported": true,
-    "mobileExclusive": true,
+    "arcade": true,
     "play": "games/slice-master/index.html"
   },
   {
@@ -18,9 +18,9 @@ const games = [
     "description": "Change lanes, dodge traffic and collect gold on five highways. Tune and paint cars in the garage, then take on the daily challenge.",
     "orientation": "portrait",
     "cover": "assets/highway-rush.png",
-    "macSupported": false,
+    "macSupported": true,
     "iPhoneSupported": true,
-    "mobileExclusive": true,
+    "arcade": true,
     "play": "games/highway-rush/index.html"
   },
   {
@@ -30,9 +30,9 @@ const games = [
     "description": "Tap to hop through matching neon bars. Land and wait for your color, then collect prisms and diamonds in Endless, Level or Challenge mode.",
     "orientation": "portrait",
     "cover": "assets/color-switch.png",
-    "macSupported": false,
+    "macSupported": true,
     "iPhoneSupported": true,
-    "mobileExclusive": true,
+    "arcade": true,
     "play": "games/color-switch/index.html"
   },
   {
@@ -42,9 +42,9 @@ const games = [
     "description": "Explore five angled city districts with waterfronts, curved streets and tall buildings. Grow your hole and outscore five AI rivals.",
     "orientation": "landscape",
     "cover": "assets/hole-city.png",
-    "macSupported": false,
+    "macSupported": true,
     "iPhoneSupported": true,
-    "mobileExclusive": true,
+    "arcade": true,
     "play": "games/hole-city/index.html"
   },
   {
@@ -54,9 +54,9 @@ const games = [
     "description": "Follow pictured order tickets, work the grill and serve burgers with sides. Earn tips, upgrade your restaurant and unlock new locations.",
     "orientation": "landscape",
     "cover": "assets/burger-rush.png",
-    "macSupported": false,
+    "macSupported": true,
     "iPhoneSupported": true,
-    "mobileExclusive": true,
+    "arcade": true,
     "play": "games/burger-rush/index.html"
   },
   {

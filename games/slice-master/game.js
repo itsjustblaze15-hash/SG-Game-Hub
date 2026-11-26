@@ -96,7 +96,7 @@ function intersects(a,b,p){
   const d=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);
   return (p.x-a.x-dx*d)**2+(p.y-a.y-dy*d)**2<p.r*p.r;
 }
-mount({title:'Slice Master',highlight:'Master',category:'Fruit arcade',description:'Swipe through flying fruit. Chain clean cuts and watch for fuses.',orientation:'landscape',modes:['Classic','Timed','Zen'],defaults:{blade:0,scene:0,total:0,combo:0},tune:[0,7,9,12,7,9,14,12],root:55},api=>{
+mount({title:'Slice Master',highlight:'Master',category:'Fruit arcade',description:'Swipe through flying fruit. Chain clean cuts and watch for fuses.',desktopHelp:'Click and drag through the fruit. Slice several in one stroke and avoid the bombs.',orientation:'landscape',modes:['Classic','Timed','Zen'],defaults:{blade:0,scene:0,total:0,combo:0},tune:[0,7,9,12,7,9,14,12],root:55},api=>{
   const fx=particleKit(170);
   let airborne=[],pieces=[],trail=[],last=null,score=0,lives=3,combo=0,chain=0,spawnAt=0,bestCombo=0,t=0,timeLimit=60,ending=false,showHelp=true;
   function start(mode){
@@ -183,7 +183,7 @@ mount({title:'Slice Master',highlight:'Master',category:'Fruit arcade',descripti
         g.save();g.globalAlpha=p.life/.19;g.lineCap='round';g.shadowBlur=16;g.shadowColor=blades[api.state.blade][1];g.strokeStyle=blades[api.state.blade][1];g.lineWidth=10;
         g.beginPath();g.moveTo(p.a.x,p.a.y);g.lineTo(p.b.x,p.b.y);g.stroke();g.shadowBlur=0;g.strokeStyle='#fff';g.lineWidth=3;g.stroke();g.restore();
       }
-      if(showHelp&&t<6)label(g,'Swipe to slice',w/2,h*.78,24,'#fff5c8');
+      if(showHelp&&t<6)label(g,api.desktop?'Click and drag to slice':'Swipe to slice',w/2,h*.78,24,'#fff5c8');
     }
   }
   const unlocks=()=>api.showChoices('Slice dojo','Slice fruit to unlock new blades and places.',[

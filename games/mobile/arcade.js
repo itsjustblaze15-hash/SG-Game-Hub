@@ -36,6 +36,14 @@ window.SGArcade = (() => {
     const layer=$('menu-layer'), panel=$('menu-panel'), chrome=$('chrome'), stats=$('stats'), toolbar=$('toolbar'), note=$('game-note');
     const id=document.documentElement.dataset.game;
     const key='sg-arcade-v1:'+id;
+    const desktop=window.SGMacDesktop();
+    const desktopHost=desktop&&window.__sgGameID===id&&!!window.webkit?.messageHandlers?.controls;
+    document.documentElement.dataset.input=desktop?'desktop':'touch';
+    if(desktopHost){
+      document.documentElement.classList.add('sg-desktop-host');
+      $('back-to-sg').hidden=true;
+    }
+    if(desktop)c.tabIndex=0;
     const native=window.SGNative;
     const bridge=()=>window.webkit?.messageHandlers?.sgMobile;
     const send=payload=>bridge()?.postMessage(payload);
@@ -51,10 +59,10 @@ window.SGArcade = (() => {
     function button(text,cb,primary=false){
       const el=document.createElement('button');el.type='button';el.textContent=text;
       if(primary)el.className='main-action';
-      el.onclick=()=>{unlockSound();tone('button');cb();};return el;
+      el.onclick=event=>{unlockSound();tone('button');cb(event);};return el;
     }
-    if(!window.SGAppleMobile()){
-      const title=document.createElement('h2');title.textContent='Play on iPhone or iPad';
+    if(!desktop&&!window.SGAppleMobile()){
+      const title=document.createElement('h2');title.textContent='Play on Mac, iPhone or iPad';
       const text=document.createElement('p');text.className='desc';text.textContent=config.title;
       panel.replaceChildren(title,text);
       return;
@@ -95,7 +103,7 @@ window.SGArcade = (() => {
     }
     const context={
       get w(){return width;},get h(){return height;},get mode(){return mode;},get age(){return elapsed;},
-      id,state,save,tone,buzz,notice(text){
+      id,desktop,state,save,tone,buzz,notice(text){
         note.textContent=text;note.hidden=false;noticeTime=lastNote+2.25;
       },
       hud(entries){
@@ -109,8 +117,12 @@ window.SGArcade = (() => {
       },
       controls(entries=[]){
         const groups=new Map(), elements=[];
-        for(const {label,action,id,icon,group,active} of entries){
-          const b=button('',()=>{if(screen==='play')action();});
+        for(const {label,action,id,icon,group,active,shortcut} of entries){
+          const b=button('',event=>{
+            if(screen!=='play')return;
+            action();
+            if(desktop&&event.detail>0&&screen==='play')c.focus({preventScroll:true});
+          });
           if(id)b.id=id;
           if(active){b.classList.add('active');b.setAttribute('aria-pressed','true');}
           if(icon){
@@ -119,6 +131,10 @@ window.SGArcade = (() => {
             b.append(art);
           }
           const words=document.createElement('span');words.className='control-label';words.textContent=label;b.append(words);
+          if(desktop&&shortcut){
+            b.title=label+' ('+shortcut+')';
+            const key=document.createElement('kbd');key.className='control-key';key.setAttribute('aria-hidden','true');key.textContent=shortcut;b.append(key);
+          }
           if(!group){elements.push(b);continue;}
           if(!groups.has(group)){
             const row=document.createElement('div');row.className='control-group';row.dataset.group=group;
@@ -187,7 +203,7 @@ window.SGArcade = (() => {
     }
     function menu(){
       display('menu');
-      title(config.title,config.description,config.category,true);
+      title(config.title,desktop&&config.desktopHelp?config.desktopHelp:config.description,config.category,true);
       if(config.modes?.length>1){
         const modes=document.createElement('div');modes.className='mode-list';modes.setAttribute('aria-label','Game mode');
         for(const m of config.modes){
@@ -202,11 +218,16 @@ window.SGArcade = (() => {
     function start(){
       display('play');elapsed=0;statline='';stats.replaceChildren();context.controls();
       game.start(mode);save();
+      if(desktop)c.focus({preventScroll:true});
+    }
+    function resume(){
+      display('play');last=0;
+      if(desktop)c.focus({preventScroll:true});
     }
     function pause(){
       if(screen!=='play')return;
-      game.cancel?.();save();display('pause');title('Paused',config.pauseTip??'',config.title);
-      actions([['Resume',()=>{display('play');last=0;},true],['Restart',start],['Settings',()=>settings(()=>{
+      game.cancel?.();save();display('pause');title('Paused',(desktop?config.desktopHelp:config.pauseTip)??'',config.title);
+      actions([['Resume',resume,true],['Restart',start],['Settings',()=>settings(()=>{
         screen='play';pause();
       })]]);
       actions([['Main menu',menu]]);
@@ -214,7 +235,8 @@ window.SGArcade = (() => {
     function size(){
       const rect=c.getBoundingClientRect();if(!rect.width||!rect.height)return;
       const ratio=rect.width/rect.height;
-      if(config.orientation==='portrait'){width=420;height=Math.round(clamp(width/ratio,540,940));}
+      if(desktop&&config.desktopWide){height=660;width=Math.round(clamp(height*ratio,470,1030));}
+      else if(config.orientation==='portrait'){width=420;height=Math.round(clamp(width/ratio,540,940));}
       else{height=560;width=Math.round(clamp(height*ratio,640,1210));}
       scale=Math.min(rect.width/width,rect.height/height);
       ox=(rect.width-width*scale)/2;oy=(rect.height-height*scale)/2;
@@ -228,7 +250,10 @@ window.SGArcade = (() => {
     }
     c.addEventListener('pointerdown',ev=>{
       if(screen!=='play'||pointer!==null)return;
-      ev.preventDefault();unlockSound();pointer=ev.pointerId;c.setPointerCapture(pointer);game.down?.(point(ev));
+      if(desktop&&ev.button!==0)return;
+      ev.preventDefault();unlockSound();
+      if(desktop)c.focus({preventScroll:true});
+      pointer=ev.pointerId;c.setPointerCapture(pointer);game.down?.(point(ev));
     });
     c.addEventListener('pointermove',ev=>{
       if(ev.pointerId!==pointer||screen!=='play')return;
@@ -243,6 +268,24 @@ window.SGArcade = (() => {
     for(const type of ['pointercancel','lostpointercapture'])c.addEventListener(type,ev=>{
       if(ev.pointerId===pointer){pointer=null;game.cancel?.();}
     });
+    if(desktop){
+      const keyName=e=>e.key.length===1?e.key.toLowerCase():e.key;
+      addEventListener('keydown',e=>{
+        if(e.metaKey||e.ctrlKey||e.altKey||e.defaultPrevented)return;
+        if(e.key==='Escape'&&!e.repeat&&(screen==='play'||screen==='pause')){
+          e.preventDefault();
+          if(screen==='play')pause();else resume();
+          return;
+        }
+        if(screen!=='play'||!game.key)return;
+        if(e.target instanceof HTMLElement&&e.target.closest('button')&&(e.key===' '||e.key==='Enter'))return;
+        if(game.key(keyName(e),true,e.repeat)){e.preventDefault();unlockSound();}
+      });
+      addEventListener('keyup',e=>{
+        if(screen==='play'&&game.key?.(keyName(e),false,false))e.preventDefault();
+      });
+      addEventListener('blur',()=>{if(screen==='play'){game.cancel?.();pointer=null;}});
+    }
     document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();audio?.suspend();}else last=0;});
     addEventListener('pagehide',()=>{pause();save();});
     addEventListener('message',ev=>{

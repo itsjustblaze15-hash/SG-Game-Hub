@@ -19,7 +19,7 @@ const phoneLayout = matchMedia('(pointer: coarse) and (max-width: 1100px), (max-
 const refreshHub = document.querySelector('#refresh-hub');
 const isAppleMobile = /iPhone|iPad/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isNewArcadeDevice = window.SGAppleMobile();
+const arcadeDevice = window.SGAppleMobile() || window.SGMacDesktop();
 
 function reloadHub(build) {
   const url = new URL(location.href);
@@ -166,10 +166,10 @@ function closeGame() {
 
 function syncPlayerOrientation() {
   if (!playingGame) return;
-  const wantsPortrait = playingGame.mobileExclusive
+  const wantsPortrait = playingGame.arcade
     ? playingGame.orientation === 'portrait' : portraitGames.has(playingGame.id);
-  const needsRotation = !wantsPortrait && portraitPhone.matches;
-  if (needsRotation && playingGame.mobileExclusive)
+  const needsRotation = !wantsPortrait && portraitPhone.matches && (!playingGame.arcade || isAppleMobile);
+  if (needsRotation && playingGame.arcade)
     playerFrame.firstElementChild?.contentWindow?.postMessage({type: 'sg-mobile-pause'}, location.origin);
   rotatePrompt.hidden = !needsRotation;
   playerFrame.classList.toggle('waiting-for-landscape', needsRotation);
@@ -180,7 +180,7 @@ function syncPlayerOrientation() {
   frame.title = playingGame.name;
   const game = playingGame;
   const source = new URL(game.play, location.href);
-  if (game.mobileExclusive) source.searchParams.set('v', document.querySelector('meta[name="sg-build"]').content);
+  if (game.arcade) source.searchParams.set('v', document.querySelector('meta[name="sg-build"]').content);
   if (repairedGames.has(game.id)) source.searchParams.set('sg-version', phoneBuild);
   if (game.id === 'little-garden') source.searchParams.set('sg-version', document.querySelector('meta[name="sg-build"]').content);
   const refreshed = new URL(location.href).searchParams.get('sg-refresh');
@@ -193,7 +193,7 @@ portraitPhone.addEventListener('change', syncPlayerOrientation);
 
 function canPlay(game) {
   if (!game?.play) return false;
-  if (game.mobileExclusive) return isNewArcadeDevice;
+  if (game.arcade) return arcadeDevice;
   if (game.id !== 'little-garden') return true;
   return isAppleMobile;
 }
@@ -207,7 +207,7 @@ function startGame(game) {
   player.hidden = false;
   document.body.classList.add('playing');
   sizePlayerToScreen();
-  player.classList.toggle('arcade-player', !!game.mobileExclusive);
+  player.classList.toggle('arcade-player', !!game.arcade);
   if (history.state?.sgHub) history.replaceState({ sgHub: true, sgPlayer: true }, '');
   else history.pushState({ sgHub: true, sgPlayer: true }, '');
   exitGame.focus({ preventScroll: true });
@@ -220,7 +220,7 @@ exitGame.addEventListener('click', () => {
 });
 window.addEventListener('popstate', closeGame);
 window.addEventListener('message', event => {
-  if (!playingGame?.mobileExclusive || event.origin !== location.origin ||
+  if (!playingGame?.arcade || event.origin !== location.origin ||
       event.source !== playerFrame.firstElementChild?.contentWindow) return;
   if (event.data?.type === 'sg-mobile-exit') closeGame();
 });
@@ -325,7 +325,7 @@ function openGame(game) {
   selectedGame = game;
   launcher = document.activeElement;
   document.querySelector('#game-cover').src = game.cover;
-  dialog.classList.toggle('mobile-details', !!game.mobileExclusive);
+  dialog.classList.toggle('arcade-details', !!game.arcade);
   document.querySelector('#game-title').textContent = game.name;
   document.querySelector('#game-genre').textContent = game.subtitle;
   document.querySelector('#game-description').textContent = game.description;
@@ -334,7 +334,7 @@ function openGame(game) {
   play.hidden = !playable;
   play.disabled = !playable;
   const availability = document.querySelector('#availability');
-  availability.hidden = playable || !!game.mobileExclusive;
+  availability.hidden = playable || !!game.arcade;
   availability.textContent = game.id === 'little-garden'
     ? 'Playable on iPhone and iPad.'
     : 'Playable in SG on Mac.';
@@ -343,7 +343,7 @@ function openGame(game) {
 
 function gameCard(game) {
   const tile = document.createElement('div');
-  tile.className = 'game-tile' + (game.mobileExclusive ? ' mobile-exclusive' : '');
+  tile.className = 'game-tile' + (game.arcade ? ' arcade-card' : '');
   tile.dataset.game = game.id;
   const card = document.createElement('button');
   card.type = 'button';

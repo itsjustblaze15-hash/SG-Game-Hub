@@ -55,3 +55,11 @@ html[data-game=burger-rush] #toolbar [data-group=ingredients] button.active{back
 html[data-game=burger-rush] #toolbar button{background:#fff3d8;color:#6b292a;border-color:#af6952;box-shadow:0 3px #6e3028b0}
 html[data-game=burger-rush] #toolbar #serve-order{background:#a62634;color:#fff6d8;border-color:#772a33}
 html[data-game=burger-rush] #game-note{top:51%;max-width:70%}
+
+html[data-input=desktop] .stage canvas:focus{outline:0}
+html[data-input=desktop] .stage canvas{cursor:crosshair}
+html[data-input=desktop][data-game=burger-rush] .stage canvas{cursor:default}
+html[data-input=desktop] .control-key{min-width:1.15em;padding:1px 4px;border:1px solid currentColor;border-radius:4px;opacity:.78;font:650 .78em system-ui;text-align:center}
+html[data-input=desktop] button:has(.control-key){display:inline-flex;align-items:center;gap:6px}
+.sg-desktop-host .chrome{left:max(8px,env(safe-area-inset-left))}
+.sg-desktop-host .layer{padding-top:max(16px,env(safe-area-inset-top))}
