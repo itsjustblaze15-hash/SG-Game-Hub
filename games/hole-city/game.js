@@ -3,7 +3,7 @@
 const {mount,clamp,lerp,tau,ellipse,box,polygon,gradient,label,particleKit}=SGArcade;
 const art=window.SGCityArt;
 const districts=[['Downtown City',0],['Residential Neighborhood',33],['Beach Town',61],['Industrial District',95],['Mega City',125]];
-const skins=[['Plasma','#e260ff',0],['Aquatic','#5af9f0',30],['Solar','#ffbf5b',62],['Ultraviolet','#8692ff',100]];
+const skins=[['Plasma','#e260ff',0],['Aquatic','#5af9f0',0],['Solar','#ffbf5b',0],['Ultraviolet','#8692ff',0],['Lime','#9fee6c',0],['Rose','#ff75ad',0]];
 const rivalsData=[['Nova','#5ecafa'],['Orbit','#ff9a5e'],['Rift','#9fee6c'],['Echo','#ff75ad'],['Atlas','#ecc66a']];
 const items={
   trash:[6,0,3,19],cone:[8,0,5,24],planter:[12,16,8,43],bench:[15,22,11,69],
@@ -125,16 +125,19 @@ function tallArt(g,p){
 }
 
 mount({
-  title:'Hole City',highlight:'City',category:'City takeover',description:'Roam the waterfront, grow through whole neighborhoods, and race five rival holes.',
-  desktopHelp:'Move with WASD or the arrow keys. You can also click and drag to steer.',
-  orientation:'landscape',modes:['Timed','Endless','City Destruction'],unlockTitle:'Districts & vortex skins',
+  title:'Hole City',highlight:'City',category:'City battle royale',description:'Choose your color. Eat the city, escape the shrinking storm, and be the last hole standing.',
+  desktopHelp:'WASD, arrows, or drag to move. Grow, swallow smaller rivals, and stay inside the safe zone. Last hole standing wins.',
+  orientation:'landscape',modes:['Battle Royale','Timed','Endless','City Destruction'],unlockTitle:'Districts & vortex skins',
   defaults:{maxSize:0,total:0,map:0,skin:0,destroyed:0},root:46,tune:[0,3,7,10,7,5,3,10]
 },api=>{
   const fx=particleKit(110), keys=new Set();
   const directions={ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right',ArrowUp:'up',w:'up',ArrowDown:'down',s:'down'};
   let world,worldIndex=-1,overview,levelScene,demo,player,rivals=[],props=[],cars=[],origin=null,
     vector={x:0,y:0},view,round=0,limit=0,done=false,tip=true,saveAt=0,savePending=false,hudAt=0,rng;
-  const actor=(base,x,y,size)=>({...base,x,y,r:size,size,points:0,objects:0,buildings:0,target:null,think:base.think??0,phase:0});
+  const actor=(base,x,y,size)=>({...base,x,y,r:size,size,points:0,objects:0,buildings:0,target:null,think:base.think??0,phase:0,alive:true,exposure:0,eliminatedAt:0});
+  let zone=null,stormWarning=false;
+  const battle=()=>api.mode==='Battle Royale';
+  const contenders=()=>[player,...rivals].filter(unit=>unit.alive);
   function loadDistrict(){
     if(world&&worldIndex===api.state.map)return;
     worldIndex=api.state.map;world=window.SGCityDistrict.create(worldIndex);
@@ -156,8 +159,11 @@ mount({
   function start(mode){
     loadDistrict();
     ({props,cars}=generate(world,worldIndex));
-    rng=worldRng(1571+worldIndex*4096);
-    round=0;limit=mode==='Timed'?135:mode==='City Destruction'?185:0;
+    rng=worldRng(Math.floor(Math.random()*2**32));
+    const centers=world.plots.filter(p=>world.isLand(p.x,p.y)&&p.x>world.w*.25&&p.x<world.w*.75&&p.y>world.h*.25&&p.y<world.h*.75);
+    const center=centers[Math.floor(rng()*centers.length)]||world.spawn;
+    zone={x:center.x,y:center.y,r:Math.hypot(world.w,world.h),startR:Math.hypot(world.w,world.h)};stormWarning=false;
+    round=0;limit=mode==='Battle Royale'?150:mode==='Timed'?135:mode==='City Destruction'?185:0;
     origin=null;vector={x:0,y:0};keys.clear();done=false;tip=true;saveAt=0;savePending=false;hudAt=0;
     player=actor({name:'You',color:skins[api.state.skin][1],isPlayer:true},world.spawn.x,world.spawn.y,mode==='City Destruction'?32:14);
     view=camera(player.x,player.y,1.05);
@@ -168,18 +174,48 @@ mount({
     fx.clear();hud();
     if(mode==='Endless')api.controls([{label:'Finish run',action:()=>finish('City tour finished'),icon:'■'}]);
   }
-  function ranking(){return [player,...rivals].sort((a,b)=>b.points-a.points||Number(!!b.isPlayer)-Number(!!a.isPlayer));}
+  function ranking(){return [player,...rivals].sort((a,b)=>battle()?
+    Number(b.alive)-Number(a.alive)||(a.alive?b.size-a.size||b.points-a.points:b.eliminatedAt-a.eliminatedAt):
+    b.points-a.points||Number(!!b.isPlayer)-Number(!!a.isPlayer));}
+  function eliminate(unit,killer=null){
+    if(!unit.alive)return;
+    unit.alive=false;unit.eliminatedAt=round;unit.target=null;
+    for(const p of props)if(p.owner===unit){p.owner=null;p.fall=0;}
+    fx.burst(unit.x,unit.y,unit.color,24,180,17);
+    if(killer){
+      killer.points+=Math.round(unit.points*.34)+38;
+      killer.size=Math.min(190,Math.sqrt(killer.size**2+unit.size**2*.36));
+      if(killer.isPlayer){api.state.maxSize=Math.max(api.state.maxSize,Math.floor(killer.size));savePending=true;api.tone('combo');}
+    }
+    api.notice(unit.isPlayer?'You are out · spectating the remaining holes':unit.name+(killer?' was swallowed by '+killer.name:' was lost in the storm'));
+  }
+  function finishBattle(){
+    const winner=ranking()[0];
+    finish(winner.isPlayer?'You win!':winner.name+' wins!',
+      (contenders().length>1?'Time limit · largest surviving hole wins. ':'Last hole standing. ')+
+      'Your place: '+(ranking().indexOf(player)+1)+' of 6 · '+player.objects+' objects · score '+player.points+'.');
+  }
+  function updateZone(dt){
+    zone.r=lerp(zone.startR,75,clamp((round-20)/120,0,1));
+    if(round>=20&&!stormWarning){stormWarning=true;api.notice('The storm is closing · follow the safe circle');}
+    for(const unit of contenders()){
+      const outside=Math.hypot(unit.x-zone.x,unit.y-zone.y)>zone.r;
+      unit.exposure=outside?unit.exposure+dt:Math.max(0,unit.exposure-dt*2);
+      if(unit.exposure>=8&&contenders().length>1)eliminate(unit);
+    }
+  }
   function hud(){
     const place=ranking().indexOf(player)+1;
     const values=[['Rank',place+'/6'],['Score',player.points],['Size',Math.floor(player.size)]];
+    if(battle()){values.push(['Alive',contenders().length+'/6']);if(!player.alive)values.push(['View','Spectating']);else if(player.exposure>0)values.push(['Storm',Math.max(0,8-player.exposure).toFixed(1)+'s']);}
     if(api.mode==='City Destruction')values.push(['Buildings',player.buildings+'/6']);
     if(limit)values.push(['Time',Math.max(0,Math.ceil(limit-round))]);
     api.hud(values);
   }
-  function finish(head){
+  function finish(head,detail){
     if(done)return;
     done=true;api.save();
-    api.end(player.points,head,'Place '+(ranking().indexOf(player)+1)+' of 6 · '+player.objects+' objects · size '+Math.floor(player.size)+'.');
+    api.end(player.points,head,detail||'Place '+(ranking().indexOf(player)+1)+' of 6 · '+player.objects+' objects · size '+Math.floor(player.size)+'.');
   }
   function movement(p){
     if(!origin)return;
@@ -199,15 +235,23 @@ mount({
   }
   function accessible(unit,p){return !p.skip&&!p.owner&&unit.r>=requirement(p);}
   function chooseTarget(unit){
+    if(battle()){
+      const safeRadius=Math.max(25,zone.r-75);
+      if(Math.hypot(unit.x-zone.x,unit.y-zone.y)>safeRadius)return {x:zone.x,y:zone.y};
+      const prey=contenders().filter(other=>other!==unit&&unit.r>other.r*1.38&&Math.hypot(other.x-zone.x,other.y-zone.y)<safeRadius)
+        .sort((a,b)=>Math.hypot(a.x-unit.x,a.y-unit.y)-Math.hypot(b.x-unit.x,b.y-unit.y))[0];
+      if(prey&&Math.hypot(prey.x-unit.x,prey.y-unit.y)<400)return prey;
+    }
     let best=null,rank=0;
     for(const p of props){
-      if(!accessible(unit,p))continue;
+      if(!accessible(unit,p)||(battle()&&Math.hypot(p.x-zone.x,p.y-zone.y)>zone.r-45))continue;
       const d=(unit.x-p.x)**2+(unit.y-p.y)**2;
       if(d>1200**2)continue;
       const weight=(3+items[p.k][2]*.38)/(1+d/(12700+unit.r*115));
       if(weight>rank){rank=weight;best=p;}
     }
     if(best)return best;
+    if(battle())return {x:zone.x,y:zone.y};
     return safeSpawn(unit.index*1.8+rng()*tau,200+rng()*280,unit.x,unit.y);
   }
   function moveRival(unit,dt){
@@ -269,6 +313,15 @@ mount({
     }
   }
   function clash(){
+    if(battle()){
+      if(round<12)return;
+      const units=contenders().sort((a,b)=>b.r-a.r);
+      for(const hunter of units)for(const prey of units){
+        if(hunter===prey||!hunter.alive||!prey.alive)continue;
+        if(hunter.r>prey.r*1.38&&Math.hypot(hunter.x-prey.x,hunter.y-prey.y)<hunter.r*.67)eliminate(prey,hunter);
+      }
+      return;
+    }
     if(round<16)return;
     for(const rival of rivals){
       const distance=Math.hypot(rival.x-player.x,rival.y-player.y);
@@ -288,7 +341,9 @@ mount({
     }
   }
   function update(dt){
+    if(done)return;
     round+=dt;
+    if(battle()&&round>=limit){finishBattle();return;}
     if(limit&&round>=limit){finish('Time is up');return;}
     if(api.mode==='City Destruction'&&player.buildings>=6){finish('Skyline cleared');return;}
     let dx=vector.x,dy=vector.y;
@@ -298,13 +353,15 @@ mount({
       const y=Number(held.has('down'))-Number(held.has('up'));
       dx=x-y*shear/tilt;dy=y/tilt;
     }
-    move(player,dx,dy,dt,168+Math.min(player.r,120)*.40);
-    for(const rival of rivals)moveRival(rival,dt);
-    const units=[player,...rivals];
+    if(player.alive)move(player,dx,dy,dt,168+Math.min(player.r,120)*.40);
+    for(const rival of rivals)if(rival.alive)moveRival(rival,dt);
+    const units=contenders();
     for(const unit of units)unit.r=lerp(unit.r,unit.size,1-Math.exp(-dt*5));
     updateTraffic(dt);updateProps(dt,units);clash();
+    if(battle()){updateZone(dt);if(contenders().length<=1){finishBattle();return;}}
     view.zoom=lerp(view.zoom,clamp(1.12-player.r*.0031,.53,1.09),1-Math.exp(-dt*2.8));
-    const target=camera(player.x,player.y,view.zoom);
+    const focus=player.alive?player:ranking()[0];
+    const target=camera(focus.x,focus.y,view.zoom);
     view=camera(lerp(view.x,target.x,1-Math.exp(-dt*6)),lerp(view.y,target.y,1-Math.exp(-dt*6)),view.zoom);
     fx.update(dt);
     if(savePending&&round>=saveAt){saveAt=round+.65;savePending=false;api.save();}
@@ -327,7 +384,10 @@ mount({
     box(g,x-4,y-4,w+8,h+8,9,'#1d1539e8');
     g.save();g.beginPath();g.roundRect(x,y,w,h,6);g.clip();
     g.drawImage(overview,x,y,w,h);
-    for(const unit of [...rivals,player]){
+    if(battle()){
+      g.strokeStyle='#f9d7ff';g.lineWidth=2;g.beginPath();g.ellipse(x+zone.x/world.w*w,y+zone.y/world.h*h,zone.r/world.w*w,zone.r/world.h*h,0,0,tau);g.stroke();
+    }
+    for(const unit of contenders()){
       const px=x+unit.x/world.w*w,py=y+unit.y/world.h*h;
       ellipse(g,px,py,unit.isPlayer?4:2.8,unit.isPlayer?4:2.8,unit.color);
       if(unit.isPlayer)ellipse(g,px,py,1.5,1.5,'#fff');
@@ -357,10 +417,14 @@ mount({
     const project=(x,y)=>({x:screenX(x)+(y-scene.y)*z*shear,y:screenY(y)});
     g.fillStyle='#327e92';g.fillRect(0,0,w,h);
     const show=menu?demo:props;
-    const units=menu?[{x:scene.x+w*.24/z,y:scene.y+105,r:72,color:skins[api.state.skin][1]}]:[...rivals,player];
+    const units=menu?[{x:scene.x+w*.24/z,y:scene.y+105,r:72,color:skins[api.state.skin][1]}]:contenders();
     g.save();
     g.transform(z,0,z*shear,z*tilt,w*.5-z*(scene.x+scene.y*shear),h*.52-z*tilt*scene.y);
     g.drawImage(world.ground,0,0,world.w,world.h);
+    if(!menu&&battle()){
+      g.fillStyle='#b03fdb55';g.beginPath();g.rect(0,0,world.w,world.h);g.arc(zone.x,zone.y,zone.r,0,tau,true);g.fill('evenodd');
+      g.strokeStyle='#f8baff';g.lineWidth=5/z;g.setLineDash([18/z,10/z]);g.beginPath();g.arc(zone.x,zone.y,zone.r,0,tau);g.stroke();g.setLineDash([]);
+    }
     for(const unit of units)hole(g,unit.x,unit.y,unit.r,unit.color,now);
     g.restore();
     const visible=show.filter(p=>{
@@ -394,6 +458,15 @@ mount({
       }
       if(screen==='play'){
         drawMinimap(g);if(w>735)drawLeaders(g);
+        if(battle()){
+          const focus=player.alive?player:ranking()[0],distance=Math.hypot(zone.x-focus.x,zone.y-focus.y);
+          if(distance>zone.r*.7){
+            const center=project(zone.x,zone.y),from=project(focus.x,focus.y),angle=Math.atan2(center.y-from.y,center.x-from.x);
+            const ax=clamp(w/2+Math.cos(angle)*100,60,w-60),ay=clamp(h*.52+Math.sin(angle)*85,125,h-60);
+            g.save();g.translate(ax,ay);g.rotate(angle);polygon(g,[[14,0],[-10,-9],[-5,0],[-10,9]],'#fff0ff');g.restore();
+            label(g,'SAFE ZONE',ax,ay+23,12,'#fff');
+          }
+        }
         if(tip&&round<11){
           box(g,w/2-107,h*.84-18,214,34,12,'#201535dc');
           label(g,api.desktop?'WASD or arrows to move':'Drag to move',w/2,h*.84,19,'#fff2ff');
@@ -408,7 +481,7 @@ mount({
   function unlocks(){
     api.showChoices('Districts & vortex skins','Size record '+api.state.maxSize+' · '+api.state.total+' lifetime objects',[
       ...districts.map(([name,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Select district',disabled:need>api.state.maxSize,selected:i===api.state.map,action(){api.state.map=i;api.save();unlocks();}})),
-      ...skins.map(([name,,need],i)=>({label:name,detail:need>api.state.maxSize?'Reach size '+need:'Vortex skin',disabled:need>api.state.maxSize,selected:i===api.state.skin,action(){api.state.skin=i;api.save();unlocks();}})),
+      ...skins.map(([name,,need],i)=>({label:name,detail:'Vortex color',disabled:false,selected:i===api.state.skin,action(){api.state.skin=i;api.save();unlocks();}})),
       {label:'Skyline eater',detail:api.state.destroyed>=10?'Achievement earned':'Swallow 10 buildings ('+api.state.destroyed+'/10)'},
       {label:'Street sweep',detail:api.state.total>=100?'Achievement earned':'Swallow 100 total objects ('+api.state.total+'/100)'}
     ]);
@@ -419,7 +492,17 @@ mount({
     if(down){keys.add(key);tip=false;}else keys.delete(key);
     return true;
   }
-  return {start,update,draw,unlocks,key,recordText:()=>api.state.maxSize+' size record · '+api.state.total+' lifetime objects',
+  function menu(panel){
+    const title=document.createElement('p');title.className='eyebrow';title.textContent='Choose your hole color';panel.append(title);
+    const row=document.createElement('div');row.className='hole-colors';row.setAttribute('aria-label','Hole color');
+    skins.forEach(([name,color],i)=>{
+      const button=document.createElement('button');button.type='button';button.title=name;button.setAttribute('aria-label',name+' hole');button.setAttribute('aria-pressed',String(api.state.skin===i));
+      button.style.setProperty('--hole-color',color);button.textContent=api.state.skin===i?'✓':'';
+      button.onclick=()=>{api.state.skin=i;api.save();api.menu();};row.append(button);
+    });panel.append(row);
+    const rules=document.createElement('p');rules.className='desc';rules.textContent='Battle Royale · 2:30 · 6 holes · Storm closes after 20s. Eight seconds outside eliminates you. Last survivor wins; at time limit, largest survivor wins.';panel.append(rules);
+  }
+  return {start,update,draw,unlocks,key,menu,recordText:()=>api.state.maxSize+' size record · '+api.state.total+' lifetime objects',
     down(p){origin=p;},move:movement,up:stopPointer,cancel(){stopPointer();keys.clear();}};
 });
 })();

@@ -212,6 +212,7 @@ window.SGArcade = (() => {
         }
         panel.append(modes);
       }
+      game.menu?.(panel);
       actions([['Play',start,true],[config.unlockTitle??'Unlockables',()=>game.unlocks()],['High scores',records]]);
       actions([['Settings',()=>settings(menu)],...(game.guide?[['How to play',game.guide]]:[])]);
     }

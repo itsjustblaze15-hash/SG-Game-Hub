@@ -103,6 +103,13 @@ async function testMobile(browser,base,device,landscape,ids,offline){
         await frame.getByText('2. Match the middle color',{exact:true}).waitFor();
         await tap(frame,'Back');
       }
+      if(id==='hole-city'){
+        assert(await frame.getByRole('button',{name:'Battle Royale',exact:true}).getAttribute('aria-pressed')==='true');
+        const color=frame.getByRole('button',{name:'Solar hole',exact:true});
+        await color.tap();assert.equal(await color.getAttribute('aria-pressed'),'true');
+        assert.equal(await frame.locator('#menu-panel').evaluate(el=>getComputedStyle(el).overflowY),'auto');
+        assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('sg-arcade-v1:hole-city')).skin),2);
+      }
       await shot(page,device.replaceAll(' ','-')+'-'+id+'-menu');
       await tap(frame,'Settings');await tap(frame,'Music on');await tap(frame,'Back');await tap(frame,'Play');
       const canvas=frame.locator('#board');
@@ -119,6 +126,7 @@ async function testMobile(browser,base,device,landscape,ids,offline){
       assert(selection.canceled.every(Boolean),JSON.stringify(selection));
       await shot(page,device.replaceAll(' ','-')+'-'+id+'-play');
       assert(await frame.locator('#stats').isVisible());
+      if(id==='hole-city')assert.match(await frame.locator('#stats').textContent(),/Alive6\/6.*Time/);
       const rect=await canvas.boundingBox();
       assert(rect.width>240&&rect.height>220);
       if(id==='color-switch'){
