@@ -1,5 +1,15 @@
 const games = [
   {
+    "id": "tiny-hide-and-seek",
+    "name": "Tiny Hide & Seek",
+    "subtitle": "3D · HIDE & SEEK",
+    "description": "Hide as tiny people in a giant living room, then take turns searching under the couch, inside shoes, and around oversized furniture.",
+    "cover": "assets/tiny-hide-and-seek.png",
+    "macSupported": true,
+    "iPhoneSupported": true,
+    "play": "games/tiny-hide-and-seek/index.html"
+  },
+  {
     "id": "slice-master",
     "name": "Slice Master",
     "subtitle": "2D · FRUIT ARCADE",

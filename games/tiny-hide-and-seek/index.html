@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Tiny Hide & Seek</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#1d1a2e;font-family:"Trebuchet MS",system-ui,sans-serif;color:#fff;touch-action:none}
+canvas{display:block}
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:50;gap:14px}
+.hidden{display:none!important}
+#menu{background:radial-gradient(circle at 50% 30%,#ffb86b 0%,#f2668b 45%,#3b2a63 100%)}
+#pass{background:#241c3d}
+#result{background:rgba(25,18,48,.94)}
+h1{font-size:clamp(34px,7vw,64px);letter-spacing:1px;text-shadow:0 5px 0 rgba(0,0,0,.25)}
+h2{font-size:clamp(24px,5vw,40px)}
+p{font-size:clamp(15px,2.4vw,20px);max-width:620px;line-height:1.45;opacity:.95}
+.btn{background:#ffd24a;color:#3a2350;border:none;border-radius:16px;padding:14px 30px;font-size:20px;font-weight:bold;cursor:pointer;box-shadow:0 5px 0 #c9971b;font-family:inherit}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #c9971b}
+.btn.alt{background:#8fe3ff;box-shadow:0 5px 0 #4aa6c6}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+input[type=text]{font-family:inherit;font-size:18px;padding:10px 14px;border-radius:12px;border:none;width:170px;text-align:center}
+select{font-family:inherit;font-size:16px;padding:8px;border-radius:10px;border:none}
+label{font-size:16px}
+.card{background:rgba(0,0,0,.22);border-radius:18px;padding:16px 20px;display:flex;flex-direction:column;gap:12px;align-items:center}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px 14px;pointer-events:none;z-index:10}
+.pill{background:rgba(20,14,40,.72);border-radius:14px;padding:8px 14px;font-size:17px;font-weight:bold}
+#timer{font-size:26px}
+#msg{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;font-size:18px;text-align:center}
+#meter{width:160px;height:14px;border-radius:7px;background:#333;overflow:hidden;margin-top:6px}
+#meterFill{height:100%;width:0;background:#4af}
+#actions{position:fixed;right:14px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:20;align-items:flex-end}
+.act{pointer-events:auto;border:none;border-radius:50%;width:74px;height:74px;font-weight:bold;font-size:14px;font-family:inherit;color:#2b1a40;background:rgba(255,255,255,.85);box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.act.big{width:auto;border-radius:18px;height:58px;padding:0 20px;font-size:18px;background:#ffd24a}
+.act.found{background:#59f08a;animation:pulse .6s infinite alternate}
+.act.off{opacity:.35}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+#stick{position:fixed;left:24px;bottom:24px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.3);z-index:20;display:none}
+#knob{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.7)}
+#help{position:fixed;left:14px;bottom:14px;z-index:10;font-size:13px;opacity:.75;pointer-events:none}
+#scores{font-size:18px}
+#stick{left:calc(24px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom))}#actions{right:calc(14px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}</style>
+</head>
+<body>
+
+<div id="menu" class="overlay">
+  <h1>🔍 Tiny Hide & Seek</h1>
+  <p>You're both teeny-tiny people loose in a giant living room. Hide under the couch, inside a shoe, behind the cereal box, up on the bookshelf… then pass the device and let your friend hunt you down!</p>
+  <div class="card">
+    <div class="row"><input id="n1" type="text" value="Player 1" maxlength="12"><input id="n2" type="text" value="Player 2" maxlength="12"></div>
+    <div class="row">
+      <label>Hide time <select id="hideT"><option>30</option><option selected>45</option><option>60</option><option>90</option></select>s</label>
+      <label>Seek time <select id="seekT"><option>60</option><option>90</option><option selected>120</option><option>180</option></select>s</label>
+    </div>
+    <div class="row">
+      <label>Rounds <select id="rounds"><option value="2">2</option><option value="4" selected>4</option><option value="6">6</option></select></label>
+      <label><input type="checkbox" id="hotcold" checked> Hot / cold meter for seeker</label>
+    </div>
+  </div>
+  <button class="btn" id="startBtn">Play!</button>
+  <p style="font-size:14px;opacity:.8">Left thumb: joystick to walk · Right thumb: drag to look · Buttons: Jump, Crouch, Hide / FOUND<br>Tip: turn your phone sideways!</p>
+</div>
+
+<div id="pass" class="overlay hidden">
+  <h2 id="passTitle"></h2>
+  <p id="passText"></p>
+  <button class="btn" id="passBtn">I'm ready</button>
+</div>
+
+<div id="result" class="overlay hidden">
+  <h2 id="resTitle"></h2>
+  <p id="resText"></p>
+  <div id="scores" class="pill"></div>
+  <button class="btn" id="resBtn">Next round</button>
+</div>
+
+<div id="hud" class="hidden">
+  <div class="pill" id="roleTag"></div>
+  <div class="pill" id="timer">0</div>
+  <div class="pill" id="hcBox"><div id="hcLabel">Cold</div><div id="meter"><div id="meterFill"></div></div></div>
+</div>
+<div id="msg" class="pill hidden"></div>
+<div id="stick"><div id="knob"></div></div>
+<div id="actions" class="hidden">
+  <button class="act big" id="mainAct">Hide here!</button>
+  <button class="act" id="crouchAct">Crouch</button>
+  <button class="act" id="jumpAct">Jump</button>
+</div>
+<div id="help" class="hidden"></div>
+
+<script type="importmap">{"imports":{"three":"./three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf3e3c9);
+scene.fog = new THREE.Fog(0xf3e3c9, 70, 160);
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.05, 400);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+scene.add(new THREE.HemisphereLight(0xfff6e8,0x8a6a50,0.75));
+const sun = new THREE.DirectionalLight(0xfff1d6,1.15);
+sun.position.set(30,70,25); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:1,far:200});
+sun.shadow.bias=-0.0005;
+scene.add(sun);
+const lampLight = new THREE.PointLight(0xffc477,0.9,60); lampLight.position.set(-44,26,-30); scene.add(lampLight);
+
+// ---------- world building helpers ----------
+const solids = [];      // {min,max}
+const solidMeshes = []; // for line-of-sight + camera
+const matCache = {};
+function mat(c){ return matCache[c] ||= new THREE.MeshStandardMaterial({color:c,roughness:.8}); }
+function box(w,h,d,x,y,z,color,solid=true,rotY=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
+  m.position.set(x,y+h/2,z); m.rotation.y=rotY; m.castShadow=m.receiveShadow=true; scene.add(m);
+  if(solid){
+    const sw = rotY? d:w, sd = rotY? w:d; // only 0 or 90deg rotations used for solids
+    solids.push({min:new THREE.Vector3(x-sw/2,y,z-sd/2),max:new THREE.Vector3(x+sw/2,y+h,z+sd/2)});
+    solidMeshes.push(m);
+  }
+  return m;
+}
+function cyl(r,h,x,y,z,color,solid=true,seg=20){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg),mat(color));
+  m.position.set(x,y+h/2,z); m.castShadow=m.receiveShadow=true; scene.add(m);
+  if(solid){ const s=r*0.85; solids.push({min:new THREE.Vector3(x-s,y,z-s),max:new THREE.Vector3(x+s,y+h,z+s)}); solidMeshes.push(m);}
+  return m;
+}
+// hollow box, open on one side ('top','front'(+z),'back','left','right') walls t thick
+function hollow(w,h,d,x,y,z,color,open='top',t=0.35,floor=true){
+  if(floor) box(w,t,d,x,y,z,color);
+  if(open!=='top') box(w,t,d,x,y+h-t,z,color);
+  if(open!=='back') box(w,h,t,x,y,z-d/2+t/2,color);
+  if(open!=='front') box(w,h,t,x,y,z+d/2-t/2,color);
+  if(open!=='left') box(t,h,d,x-w/2+t/2,y,z,color);
+  if(open!=='right') box(t,h,d,x+w/2-t/2,y,z,color);
+}
+const R = (a,b)=>a+Math.random()*(b-a);
+
+// ---------- THE GIANT LIVING ROOM ----------
+const RW=100, RD=80, WH=45;
+// floor + walls
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(RW,RD),new THREE.MeshStandardMaterial({color:0xc8915a,roughness:.7}));
+floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+for(let i=-RW/2;i<RW/2;i+=4){ const s=new THREE.Mesh(new THREE.PlaneGeometry(0.08,RD),mat(0x9c6b3d)); s.rotation.x=-Math.PI/2; s.position.set(i,0.01,0); scene.add(s); }
+box(RW,WH,1,0,0,-RD/2-0.5,0xf6eadb); box(RW,WH,1,0,0,RD/2+0.5,0xf6eadb);
+box(1,WH,RD,-RW/2-0.5,0,0,0xe9dcf2); box(1,WH,RD,RW/2+0.5,0,0,0xe9dcf2);
+// baseboards
+box(RW,1.2,0.4,0,0,-RD/2+0.2,0xffffff,false); box(RW,1.2,0.4,0,0,RD/2-0.2,0xffffff,false);
+// window on back wall
+box(26,18,0.3,-5,16,-RD/2+0.2,0xbfe6ff,false); box(27,1,1.5,-5,15.5,-RD/2+0.7,0xffffff);
+// rug (flat, decorative)
+const rug=new THREE.Mesh(new THREE.CircleGeometry(20,48),mat(0x6a7fd6)); rug.rotation.x=-Math.PI/2; rug.position.set(-24,0.03,-6); rug.receiveShadow=true; scene.add(rug);
+const rug2=new THREE.Mesh(new THREE.RingGeometry(14,16,48),mat(0xffd36e)); rug2.rotation.x=-Math.PI/2; rug2.position.set(-24,0.04,-6); scene.add(rug2);
+
+// COUCH (hide underneath!)
+{ const cx=-24,cz=-30,C=0x2f8f83;
+  for(const [dx,dz] of [[-15,-5],[15,-5],[-15,5],[15,5],[0,5]]) box(1.2,3,1.2,cx+dx,0,cz+dz,0x4a2e1d);
+  box(34,4,12,cx,3,cz,C);               // base
+  box(34,12,3,cx,7,cz-4.5,C);           // back
+  box(3,7,12,cx-15.5,7,cz,C); box(3,7,12,cx+15.5,7,cz,C); // arms
+  box(14,2.5,8,cx-7,7,cz+1,0x3aa597); box(14,2.5,8,cx+7,7,cz+1,0x3aa597); // cushions
+  box(6,6,2.5,cx-10,9.5,cz-1.8,0xffb04a,true); box(6,6,2.5,cx+11,9.5,cz-1.8,0xf06e8f,true); // pillows
+  box(5,0.6,4,cx+3,0,cz+1,0xdddddd,false); // lost sock... under couch
+  cyl(0.9,0.4,cx-5,0,cz-2,0xd9b13b,false); // coin
+}
+// COFFEE TABLE + stuff
+{ const tx=-24,tz=-6;
+  box(20,1,11,tx,7,tz,0x8b5a2b);
+  for(const [dx,dz] of [[-9,-4.5],[9,-4.5],[-9,4.5],[9,4.5]]) box(1,7,1,tx+dx,0,tz+dz,0x6b4220);
+  box(17,0.5,8,tx,2,tz,0x7a4c24); // lower shelf
+  for(const [dx,dz] of [[-9,-4.5],[9,-4.5],[-9,4.5],[9,4.5]]) box(0.6,2,0.6,tx+dx,0,tz+dz,0x6b4220,false);
+  // magazines on shelf
+  box(6,0.8,4.5,tx-5,2.5,tz,0xe04848); box(5.5,0.6,4,tx-5,3.3,tz+0.3,0x4887e0);
+  // mug (hollow-ish: cylinder) + remote + bowl on top
+  cyl(1.6,3.4,tx+5,8,tz-2,0xffffff); cyl(1.3,0.2,tx+5,11.25,tz-2,0x5a3418,false);
+  box(1.2,0.6,5,tx-2,8,tz+2,0x222222);
+  cyl(3,1.6,tx-6,8,tz-1.5,0xf2c14e);
+}
+// TOY STAIRS -> up onto coffee table
+for(let i=0;i<5;i++) box(2.5,1.4*(i+1),2.5,-36+i*2.5,0,-1+ (i>3?0:0),[0xe74c3c,0xf1c40f,0x2ecc71,0x3498db,0x9b59b6][i]);
+
+// BOOKSHELF (back wall, right)
+{ const bx=26,bz=-35, W=24,D=8,H=36, wood=0x7b4f2c;
+  box(1,H,D,bx-W/2,0,bz,wood); box(1,H,D,bx+W/2,0,bz,wood); box(W,H,0.6,bx,0,bz-D/2+0.3,0x6a4325);
+  const cols=[0xc0392b,0x2980b9,0x27ae60,0x8e44ad,0xf39c12,0x16a085,0xd35400,0x34495e,0xe84393];
+  for(let s=0;s<4;s++){ const y=s*9; box(W,1,D,bx,y,bz,wood);
+    let x=bx-W/2+1.2; while(x<bx+W/2-1.5){
+      if(Math.random()<0.18){ x+=R(2.5,4); continue;} // gaps to squeeze into
+      const bw=R(0.8,1.6), bh=R(5,7.5);
+      box(bw,bh,R(5,6.5),x+bw/2,y+1,bz+0.2,cols[(Math.random()*cols.length)|0]); x+=bw+0.05; }
+  }
+  box(W,1,D,bx,H,bz,wood);
+  // climb: book stack staircase to first shelf
+  box(4,1.5,5,bx-16,0,bz+6,0x3b6ea5); box(4,3,5,bx-16,0,bz+1.5,0xa53b5a); box(4,4.5,4,bx-12.5,0,bz+5.5,0x5aa53b); box(3,6,3,bx-15,0,bz-1,0xb08d57);
+  box(3.5,7.8,3.5,bx-10.5,0,bz+1.5,0xe6c27a);
+}
+// DINING TABLE + CHAIRS (right side)
+{ const tx=28,tz=8;
+  box(26,1.2,16,tx,20,tz,0xa8733f);
+  for(const [dx,dz] of [[-12,-7],[12,-7],[-12,7],[12,7]]) box(1.4,20,1.4,tx+dx,0,tz+dz,0x7a5028);
+  for(const [dx,dz,r] of [[-6,-12,0],[6,-12,0],[-6,12,1],[6,12,1]]){
+    const cz=tz+dz; box(7,0.8,7,tx+dx,11,cz,0xd9a066);
+    for(const [ex,ez] of [[-3,-3],[3,-3],[-3,3],[3,3]]) box(0.7,11,0.7,tx+dx+ex,0,cz+ez,0xb07a43);
+    box(7,10,0.7,tx+dx,11.8,cz+(r?3.2:-3.2),0xd9a066);
+  }
+  // dog bed under table
+  hollow(10,2.2,8,tx,0,tz,0x9c5b9c,'top',0.9);
+  box(8,0.6,6,tx,0.9,tz,0xe8c9ff,false);
+  // bowl of fruit on top
+  cyl(4,1.5,tx,21.2,tz,0xffffff); cyl(1.2,2.4,tx-1.5,22.2,tz,0xe03a3a,false); cyl(1.1,2.4,tx+1.4,22.2,tz+0.8,0xf5d342,false);
+}
+// TV STAND with open cubbies (left wall)
+{ const sx=-46,sz=10;
+  box(7,0.6,24,sx,0,sz,0x333344);
+  box(7,0.6,24,sx,9,sz,0x333344);
+  box(7,9,0.6,sx,0,sz-12,0x333344); box(7,9,0.6,sx,0,sz+12,0x333344); box(7,9,0.6,sx,0,sz,0x333344);
+  box(0.6,9,24,sx-3.2,0,sz,0x333344);
+  box(1.5,14,22,sx-1,9.6,sz,0x111111); // TV
+  box(3,3.5,3.5,sx-0.5,0.6,sz-7,0x2d2d2d); box(4,1,3,sx,0.6,sz+6,0xdddddd); // console + game case
+  // climbing cushions to the stand
+  box(6,3,6,sx+7,0,sz-8,0xf28f3b); box(5,6,5,sx+6.2,0,sz-14,0xf2c53b);
+}
+// BIG SHOES by the door (hollow!)
+function shoe(x,z,rot,color){
+  const g=new THREE.Group(); scene.add(g);
+  const L=11,W=4.5,H=3.5,t=0.35;
+  const parts=[[L,t,W,0,0,0],[L,H,t,0,0,-W/2+t/2],[L,H,t,0,0,W/2-t/2],[t,H*1.4,W,-L/2+t/2,0,0],[t,H*0.6,W,L/2-t/2,0,0],[L*0.45,t,W,L*0.25,H-t,0]];
+  for(const [w,h,d,px,py,pz] of parts){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color)); m.position.set(px,py+h/2,pz); m.castShadow=m.receiveShadow=true; g.add(m); solidMeshes.push(m);
+  }
+  g.position.set(x,0,z); g.rotation.y=rot; g.updateMatrixWorld(true);
+  // add solids from rotated parts (rot is multiple of 90deg)
+  g.children.forEach(m=>{ const b=new THREE.Box3().setFromObject(m); solids.push({min:b.min.clone(),max:b.max.clone()}); });
+}
+shoe(40,32,0,0xd64545); shoe(40,26,0,0xd64545); shoe(10,34,Math.PI/2,0x3f6fd6);
+// LAUNDRY BASKET (hollow, tall walls with a gap)
+{ const x=-40,z=30;
+  box(14,0.5,12,x,0,z,0xe1c48f);
+  box(14,9,0.5,x,0,z-6,0xe1c48f); box(0.5,9,12,x-7,0,z,0xe1c48f); box(0.5,9,12,x+7,0,z,0xe1c48f);
+  box(9,9,0.5,x-2.5,0,z+6,0xe1c48f); // gap on front right = door
+  box(6,1.2,5,x-3,0.5,z-2,0xff99aa,false); box(5,1.6,4,x+3,0.5,z-3,0x99ddff,false); // clothes
+}
+// CEREAL BOX lying on its side (tunnel)
+hollow(16,5,9,-6,0,26,0xf5b833,'right',0.3);
+box(0.4,3,6,-14.2,1,26,0xe84a3a,false);
+// CARDBOARD BOX tipped open + TOY CHEST (open top; use stairs)
+hollow(12,10,12,8,0,14,0xb58b5a,'front',0.5);
+{ const x=-8,z=8; hollow(14,6,10,x,0,z,0x5b8ee6,'top',0.5); box(3,2,3,x-9,0,z,0xff6b6b); box(3,4,3,x-9,0,z+3,0x6bff9c);
+  box(3,3,3,x-2,0.5,z,0xffe66b,false); cyl(1.4,2.8,x+3,0.5,z+1,0xff8ad8,false); }
+// TOY CAR
+{ const x=14,z=-8; box(9,2.5,5,x,1.2,z,0xff3b3b); box(5,2,4.4,x-0.5,3.7,z,0x9fd8ff);
+  for(const [dx,dz] of [[-3,-2.6],[3,-2.6],[-3,2.6],[3,2.6]]){ const w=new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,0.8,16),mat(0x222222)); w.rotation.x=Math.PI/2; w.position.set(x+dx,1.3,z+dz); w.castShadow=true; scene.add(w);} }
+// PLANTS
+for(const [x,z] of [[45,-34],[-46,-34],[46,18]]){ cyl(3.5,7,x,0,z,0xc46a3c); for(let i=0;i<6;i++){ const l=new THREE.Mesh(new THREE.ConeGeometry(1.6,14,6),mat(0x3f9b4b)); l.position.set(x+R(-2,2),12,z+R(-2,2)); l.rotation.set(R(-.4,.4),0,R(-.4,.4)); l.castShadow=true; scene.add(l);} }
+// FLOOR LAMP
+cyl(3,0.6,-44,0,-30,0x333333); cyl(0.4,24,-44,0.6,-30,0x333333,false); { const sh=new THREE.Mesh(new THREE.CylinderGeometry(3,5,5,20,1,true),new THREE.MeshStandardMaterial({color:0xfff0c0,side:2,emissive:0x664400})); sh.position.set(-44,26,-30); scene.add(sh); }
+// SLIPPERS + BOOK PILE + YARN + PILLOW FORT
+box(8,1.2,3.5,-30,0,14,0xff9ecb); box(8,1.2,3.5,-30,0,18.5,0xff9ecb);
+box(9,1.2,7,30,0,-16,0x2d5f9a); box(8,1.2,6.5,30.3,1.2,-16.2,0x9a2d5f); box(8.5,1.2,6,29.8,2.4,-16,0x2d9a6c);
+{ const y=new THREE.Mesh(new THREE.SphereGeometry(2.6,20,14),mat(0xb97cf2)); y.position.set(-16,2.6,-20); y.castShadow=true; scene.add(y); solidMeshes.push(y); solids.push({min:new THREE.Vector3(-18,0,-22),max:new THREE.Vector3(-14,5,-18)}); }
+{ const x=-30,z=34; box(10,7,3,x,0,z-6,0xfff1a8); box(3,7,10,x-6,0,z+0.5,0xc8f0ff); box(10,2,12,x-1,7,z,0xffc8e0); }
+// paper airplane / random clutter
+box(4,0.2,2,0,0,-14,0xffffff,false); cyl(0.9,0.5,6,0,-24,0x63d0ff,false); cyl(0.9,0.5,7.5,0,-25,0xff6363,false);
+
+// ---------- characters ----------
+function sm(c,rough=.55){ return new THREE.MeshStandardMaterial({color:c,roughness:rough}); }
+function makeTiny(shirt,pants,hair,shoes){
+  const g=new THREE.Group(); const parts=[];
+  const add=(geo,m,x,y,z,parent=g)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;parent.add(o);parts.push(o);return o;};
+  const skin=sm(0xffd6b5,.5);
+  // legs (pivot at hip)
+  const mkLeg=x=>{ const p=new THREE.Group(); p.position.set(x,0.62,0); g.add(p);
+    add(new THREE.CapsuleGeometry(0.095,0.32,4,10),sm(pants),0,-0.24,0,p);
+    const sh=add(new THREE.BoxGeometry(0.17,0.11,0.27),sm(shoes,.4),0,-0.52,0.04,p); sh.geometry.translate(0,0,0); return p; };
+  const legL=mkLeg(-0.11), legR=mkLeg(0.11);
+  // torso: rounded shirt + belt
+  const torso=add(new THREE.CapsuleGeometry(0.22,0.28,6,14),sm(shirt),0,0.86,0); torso.scale.set(1,1,0.8);
+  add(new THREE.CylinderGeometry(0.205,0.205,0.06,16),sm(0x2b2b2b),0,0.66,0).scale.set(1,1,0.82);
+  add(new THREE.SphereGeometry(0.06,10,8),sm(0xffffff),0,0.98,0.17); // shirt badge
+  // arms (pivot at shoulder)
+  const mkArm=x=>{ const p=new THREE.Group(); p.position.set(x,1.02,0); g.add(p);
+    add(new THREE.CapsuleGeometry(0.075,0.26,4,10),sm(shirt),0,-0.15,0,p);
+    add(new THREE.SphereGeometry(0.075,12,10),skin,0,-0.36,0,p); p.rotation.z=x<0?-0.12:0.12; return p; };
+  const armL=mkArm(-0.29), armR=mkArm(0.29);
+  // big cute head
+  const headG=new THREE.Group(); headG.position.y=1.38; g.add(headG);
+  add(new THREE.SphereGeometry(0.3,24,18),skin,0,0,0,headG);
+  // hair cap + fringe tufts
+  const hm=sm(hair,.7);
+  const cap=add(new THREE.SphereGeometry(0.315,24,14,0,Math.PI*2,0,Math.PI*0.55),hm,0,0.02,-0.02,headG); cap.rotation.x=-0.25;
+  for(let i=-2;i<=2;i++){ const t=add(new THREE.SphereGeometry(0.09,10,8),hm,i*0.09,0.17,0.22,headG); t.scale.set(1,0.8,0.7); }
+  // eyes (white + pupil + shine), cheeks, smile, ears
+  for(const s of [-1,1]){
+    const w=add(new THREE.SphereGeometry(0.065,14,10),sm(0xffffff,.2),s*0.1,0.01,0.26,headG); w.scale.set(1,1.2,0.6);
+    add(new THREE.SphereGeometry(0.038,12,8),sm(0x1d1630,.2),s*0.1,0.0,0.3,headG);
+    add(new THREE.SphereGeometry(0.013,6,6),sm(0xffffff,.1),s*0.1+0.015,0.022,0.325,headG);
+    const ch=add(new THREE.SphereGeometry(0.045,10,8),sm(0xff9aa8,.6),s*0.17,-0.09,0.23,headG); ch.scale.set(1,0.6,0.4);
+    add(new THREE.SphereGeometry(0.06,10,8),skin,s*0.29,-0.01,0,headG);
+  }
+  const smile=add(new THREE.TorusGeometry(0.06,0.012,6,14,Math.PI),sm(0x7a2a2a),0,-0.1,0.28,headG); smile.rotation.z=Math.PI;
+  g.userData={legL,legR,armL,armR,headG,torso};
+  scene.add(g); return g;
+}
+const STAND_H=1.7, CROUCH_H=0.95, RADIUS=0.32;
+const avatars=[makeTiny(0xff5a6e,0x34448f,0x5a2d0c,0xffffff),makeTiny(0x3fc6ff,0x4a3b2f,0xf2c94b,0xff7a2f)];
+
+// ---------- player physics ----------
+const P={pos:new THREE.Vector3(),vel:new THREE.Vector3(),yaw:0,pitch:-0.25,ground:true,crouch:false,h:STAND_H,walk:0};
+function overlaps(p,h){
+  for(const s of solids){
+    if(p.x+RADIUS>s.min.x && p.x-RADIUS<s.max.x && p.z+RADIUS>s.min.z && p.z-RADIUS<s.max.z && p.y+h>s.min.y && p.y<s.max.y) return s;
+  } return null;
+}
+function moveAxis(axis,amt){
+  P.pos[axis]+=amt;
+  const s=overlaps(P.pos,P.h); if(!s) return;
+  // step up small ledges
+  const step=s.max.y-P.pos.y;
+  if(step>0 && step<=0.75 && P.ground){ const oy=P.pos.y; P.pos.y=s.max.y+0.001; if(!overlaps(P.pos,P.h)) return; P.pos.y=oy; }
+  P.pos[axis]-=amt;
+  if(axis==='x') P.vel.x=0; else P.vel.z=0;
+}
+function physics(dt,input){
+  // crouch
+  const want=input.crouch;
+  if(want){P.crouch=true;P.h=CROUCH_H;}
+  else if(P.crouch){ if(!overlaps(P.pos,STAND_H)){P.crouch=false;P.h=STAND_H;} }
+  const speed=P.crouch?3.2:7;
+  const fx=-Math.sin(P.yaw), fz=-Math.cos(P.yaw), rx=Math.cos(P.yaw), rz=-Math.sin(P.yaw);
+  let mx=input.mx, mz=input.mz; const len=Math.hypot(mx,mz); if(len>1){mx/=len;mz/=len;}
+  const tx=(fx*mz+rx*mx)*speed, tz=(fz*mz+rz*mx)*speed;
+  const k=Math.min(1,dt*12); P.vel.x+=(tx-P.vel.x)*k; P.vel.z+=(tz-P.vel.z)*k;
+  if(input.jump && P.ground){ P.vel.y=8.6; P.ground=false; }
+  P.vel.y-=24*dt; if(P.vel.y<-30)P.vel.y=-30;
+  moveAxis('x',P.vel.x*dt); moveAxis('z',P.vel.z*dt);
+  P.pos.y+=P.vel.y*dt; P.ground=false;
+  const s=overlaps(P.pos,P.h);
+  if(s){ if(P.vel.y<=0){P.pos.y=s.max.y;P.ground=true;} else {P.pos.y=s.min.y-P.h-0.001;} P.vel.y=0; }
+  if(P.pos.y<=0){P.pos.y=0;P.vel.y=0;P.ground=true;}
+  P.pos.x=THREE.MathUtils.clamp(P.pos.x,-RW/2+1,RW/2-1); P.pos.z=THREE.MathUtils.clamp(P.pos.z,-RD/2+1,RD/2-1);
+  if(len>0.1) P.walk+=dt*(P.crouch?8:12);
+}
+function poseAvatar(a,pos,yaw,crouch,walk,moving){
+  a.position.copy(pos); a.rotation.y=yaw+Math.PI;
+  const u=a.userData; const sw=moving?Math.sin(walk)*0.6:0;
+  u.legL.rotation.x=sw; u.legR.rotation.x=-sw; u.armL.rotation.x=-sw*0.8; u.armR.rotation.x=sw*0.8;
+  u.headG.position.y=1.38+(moving?Math.abs(Math.sin(walk))*0.03:Math.sin(performance.now()/500)*0.01);
+  a.scale.set(1,crouch?0.6:1,1);
+}
+
+// ---------- input ----------
+const PLATFORM='mobile'; // 'mac' or 'mobile'
+const keys={};
+if(PLATFORM==='mac'){
+  renderer.domElement.addEventListener('click',()=>{ if((state==='hide'||state==='seek')&&!document.pointerLockElement) renderer.domElement.requestPointerLock(); });
+  addEventListener('mousemove',e=>{ if(document.pointerLockElement){ P.yaw-=e.movementX*0.0025; P.pitch-=e.movementY*0.0025; P.pitch=THREE.MathUtils.clamp(P.pitch,-1.2,0.6);} });
+  document.addEventListener('pointerlockchange',()=>{ if((state==='hide'||state==='seek')&&!document.pointerLockElement) flash('Click the game to look around with the mouse',2500); });
+}
+addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='KeyE'||e.code==='Enter') mainAction(); if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();});
+addEventListener('keyup',e=>keys[e.code]=false);
+let touchMode=true, stick={id:null,x:0,y:0,cx:0,cy:0}, look={id:null,x:0,y:0}, tJump=false, tCrouch=false;
+const stickEl=document.getElementById('stick'), knob=document.getElementById('knob');
+const cv=renderer.domElement;
+cv.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='touch'){ if(!touchMode){touchMode=true;} if(state==='hide'||state==='seek') stickEl.style.display='block'; }
+  if(e.pointerType==='touch' && e.clientX<innerWidth*0.45 && stick.id===null){
+    stick.id=e.pointerId; const r=stickEl.getBoundingClientRect(); stick.cx=r.left+r.width/2; stick.cy=r.top+r.height/2; updStick(e);
+  } else if(look.id===null){ look.id=e.pointerId; look.x=e.clientX; look.y=e.clientY; }
+  cv.setPointerCapture(e.pointerId);
+});
+function updStick(e){ let dx=e.clientX-stick.cx, dy=e.clientY-stick.cy; const d=Math.hypot(dx,dy),m=55; if(d>m){dx*=m/d;dy*=m/d;} stick.x=dx/m; stick.y=dy/m; knob.style.left=(40+dx)+'px'; knob.style.top=(40+dy)+'px'; }
+cv.addEventListener('pointermove',e=>{
+  if(e.pointerId===stick.id) updStick(e);
+  else if(e.pointerId===look.id){ const s=e.pointerType==='touch'?0.006:0.005; P.yaw-=(e.clientX-look.x)*s; P.pitch-=(e.clientY-look.y)*s; P.pitch=THREE.MathUtils.clamp(P.pitch,-1.2,0.6); look.x=e.clientX; look.y=e.clientY; }
+});
+function endPtr(e){ if(e.pointerId===stick.id){stick.id=null;stick.x=stick.y=0;knob.style.left='40px';knob.style.top='40px';} if(e.pointerId===look.id) look.id=null; }
+cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
+const jumpBtn=document.getElementById('jumpAct'), crouchBtn=document.getElementById('crouchAct'), mainBtn=document.getElementById('mainAct');
+jumpBtn.addEventListener('pointerdown',e=>{e.stopPropagation();tJump=true;});
+crouchBtn.addEventListener('pointerdown',e=>{e.stopPropagation();tCrouch=!tCrouch;crouchBtn.textContent=tCrouch?'Stand':'Crouch';});
+mainBtn.addEventListener('click',e=>{e.stopPropagation();mainAction();});
+function readInput(){
+  let mx=0,mz=0;
+  if(keys.KeyW||keys.ArrowUp)mz+=1; if(keys.KeyS||keys.ArrowDown)mz-=1;
+  if(keys.KeyA||keys.ArrowLeft)mx-=1; if(keys.KeyD||keys.ArrowRight)mx+=1;
+  mx+=stick.x; mz-=stick.y;
+  const inp={mx,mz,jump:keys.Space||tJump,crouch:keys.KeyC||keys.ShiftLeft||keys.ShiftRight||tCrouch};
+  tJump=false; return inp;
+}
+
+// ---------- camera ----------
+const ray=new THREE.Raycaster();
+const camTarget=new THREE.Vector3();
+function updateCamera(){
+  camTarget.set(P.pos.x,P.pos.y+P.h*0.85,P.pos.z);
+  const dir=new THREE.Vector3(Math.sin(P.yaw)*Math.cos(P.pitch),-Math.sin(P.pitch),Math.cos(P.yaw)*Math.cos(P.pitch)).normalize();
+  let dist=4.2;
+  ray.set(camTarget,dir); ray.far=dist;
+  const hit=ray.intersectObjects(solidMeshes,false)[0];
+  if(hit) dist=Math.max(0.35,hit.distance-0.25);
+  camera.position.copy(camTarget).addScaledVector(dir,dist);
+  if(camera.position.y<0.15) camera.position.y=0.15;
+  camera.lookAt(camTarget);
+}
+
+// ---------- game state ----------
+const $=id=>document.getElementById(id);
+let state='menu', names=['Player 1','Player 2'], scores=[0,0], round=0, totalRounds=4, hider=0, timer=0, hideTime=45, seekTime=120, hotcold=true;
+let hidePos=new THREE.Vector3(), hideCrouch=false, hideYaw=0, canTag=false, foundAnim=0;
+const SPAWN=new THREE.Vector3(4,0,-15);
+function safeSpawn(){ P.pos.copy(SPAWN); let n=0; while(overlaps(P.pos,STAND_H)&&n<200){ P.pos.x+=1; n++; } }
+
+function show(id){ ['menu','pass','result'].forEach(o=>$(o).classList.toggle('hidden',o!==id)); }
+function setPlaying(on){ if(!on&&document.pointerLockElement) document.exitPointerLock(); $('hud').classList.toggle('hidden',!on); $('actions').classList.toggle('hidden',!on); $('help').classList.toggle('hidden',!on); stickEl.style.display=(on&&touchMode)?'block':'none'; if(!on)$('msg').classList.add('hidden'); }
+function flash(t,ms=2200){ const m=$('msg'); m.textContent=t; m.classList.remove('hidden'); clearTimeout(flash.t); flash.t=setTimeout(()=>m.classList.add('hidden'),ms); }
+
+$('startBtn').onclick=()=>{
+  names=[$('n1').value.trim()||'Player 1',$('n2').value.trim()||'Player 2'];
+  hideTime=+$('hideT').value; seekTime=+$('seekT').value; totalRounds=+$('rounds').value; hotcold=$('hotcold').checked;
+  scores=[0,0]; round=0; hider=0; preHide();
+};
+function preHide(){
+  state='passHide'; setPlaying(false); show('pass');
+  $('passTitle').textContent=`Round ${round+1} of ${totalRounds}`;
+  $('passText').innerHTML=`<b>${names[hider]}</b> hides 🙈 &nbsp;·&nbsp; <b>${names[1-hider]}</b> seeks 👀<br><br>${names[1-hider]}, look away! ${names[hider]}, grab the device and tap when you're ready to hide. You've got <b>${hideTime} seconds</b>.`;
+  $('passBtn').textContent=`I'm ${names[hider]} – start hiding!`;
+}
+function startHide(){
+  state='hide'; show(null); setPlaying(true);
+  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; crouchBtn.textContent='Crouch';
+  avatars[hider].visible=true; avatars[1-hider].visible=false;
+  timer=hideTime; $('hcBox').style.display='none';
+  $('roleTag').textContent=`🙈 ${names[hider]} hiding`;
+  mainBtn.textContent='Hide here!'; mainBtn.className='act big';
+  $('help').textContent=touchMode?'':'WASD move · drag to look · Space jump · C crouch · E hide';
+  flash('Find a sneaky spot! Under things, inside things, up high…',3500);
+}
+function lockHide(){
+  hidePos.copy(P.pos); hideCrouch=P.crouch; hideYaw=P.yaw;
+  poseAvatar(avatars[hider],hidePos,hideYaw,hideCrouch,0,false);
+  state='passSeek'; setPlaying(false); show('pass');
+  $('passTitle').textContent=`${names[hider]} is hidden! 🤫`;
+  $('passText').innerHTML=`Don't peek! Hand the device to <b>${names[1-hider]}</b>.<br><br>${names[1-hider]}, you have <b>${seekTime} seconds</b> to find them. Get close and tap <b>FOUND!</b> when you can see them.`;
+  $('passBtn').textContent=`I'm ${names[1-hider]} – start seeking!`;
+}
+function startSeek(){
+  state='seek'; show(null); setPlaying(true);
+  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; crouchBtn.textContent='Crouch';
+  avatars[1-hider].visible=true; avatars[hider].visible=true;
+  timer=seekTime; $('hcBox').style.display=hotcold?'block':'none';
+  $('roleTag').textContent=`👀 ${names[1-hider]} seeking`;
+  mainBtn.textContent='FOUND!'; mainBtn.className='act big off';
+  $('help').textContent=touchMode?'':'WASD move · drag to look · Space jump · C crouch · E tag when FOUND lights up';
+  flash(`Ready or not, here I come!`,2500);
+}
+$('passBtn').onclick=()=>{ if(state==='passHide') startHide(); else if(state==='passSeek') startSeek(); };
+
+function mainAction(){
+  if(state==='hide') lockHide();
+  else if(state==='seek'){ if(canTag) endSeek(true); else flash('Get closer – you need to actually see them!',1500); }
+}
+function endSeek(found){
+  const used=seekTime-timer, seeker=1-hider;
+  let ptsS=0, ptsH=0;
+  if(found){ ptsS=Math.max(10,Math.round(100*timer/seekTime)); ptsH=Math.round(used/2); }
+  else { ptsH=100; }
+  scores[seeker]+=ptsS; scores[hider]+=ptsH;
+  state='result'; setPlaying(false);
+  setTimeout(()=>{
+    show('result');
+    $('resTitle').textContent=found?`🎉 ${names[seeker]} found ${names[hider]}!`:`🏆 ${names[hider]} stayed hidden!`;
+    $('resText').innerHTML=found?`Found in <b>${used.toFixed(1)}s</b>.<br>${names[seeker]} +${ptsS} · ${names[hider]} +${ptsH}`:`Time's up! The hiding spot was never discovered.<br>${names[hider]} +${ptsH}`;
+    $('scores').textContent=`${names[0]}: ${scores[0]}   ·   ${names[1]}: ${scores[1]}`;
+    round++;
+    if(round>=totalRounds){
+      const w=scores[0]===scores[1]?"It's a tie!":`${names[scores[0]>scores[1]?0:1]} wins! 👑`;
+      $('resText').innerHTML+=`<br><br><b style="font-size:26px">Game over – ${w}</b>`;
+      $('resBtn').textContent='Back to menu';
+    } else $('resBtn').textContent=`Next round (swap roles)`;
+  }, found?900:200);
+  if(found){ foundAnim=0.9; }
+  else { // reveal where they were
+    P.pos.copy(hidePos); }
+}
+$('resBtn').onclick=()=>{ if(round>=totalRounds){ state='menu'; show('menu'); } else { hider=1-hider; preHide(); } };
+
+// line of sight from seeker eye to hider
+function canSeeHider(){
+  const eye=new THREE.Vector3(P.pos.x,P.pos.y+P.h*0.9,P.pos.z);
+  const hh=hideCrouch?CROUCH_H:STAND_H;
+  const pts=[0.2,0.5,0.85].map(f=>new THREE.Vector3(hidePos.x,hidePos.y+hh*f,hidePos.z));
+  for(const p of pts){
+    const d=p.clone().sub(eye); const dist=d.length(); d.normalize();
+    ray.set(eye,d); ray.far=dist-0.2;
+    if(ray.intersectObjects(solidMeshes,false).length===0) return true;
+  }
+  return false;
+}
+
+// ---------- loop ----------
+const clock=new THREE.Clock();
+let menuSpin=0;
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta(),0.05);
+  if(state==='hide'||state==='seek'){
+    const inp=readInput(); physics(dt,inp);
+    const me=state==='hide'?avatars[hider]:avatars[1-hider];
+    poseAvatar(me,P.pos,P.yaw,P.crouch,P.walk,Math.hypot(P.vel.x,P.vel.z)>0.5);
+    timer-=dt; $('timer').textContent=Math.max(0,Math.ceil(timer));
+    $('timer').style.color=timer<10?'#ff7070':'#fff';
+    if(state==='hide'){
+      if(timer<=0){ flash('Time! Hiding right here.'); lockHide(); }
+    } else {
+      const d=Math.hypot(P.pos.x-hidePos.x,P.pos.z-hidePos.z,(P.pos.y-hidePos.y)*0.8);
+      canTag = d<6 && canSeeHider();
+      mainBtn.className='act big '+(canTag?'found':'off');
+      if(hotcold){
+        const heat=THREE.MathUtils.clamp(1-d/70,0,1);
+        $('meterFill').style.width=(heat*100)+'%';
+        $('meterFill').style.background=`hsl(${220-heat*220},90%,55%)`;
+        $('hcLabel').textContent=heat>0.92?'🔥 BURNING!':heat>0.8?'Hot!':heat>0.62?'Warm':heat>0.4?'Cool':'Cold ❄️';
+      }
+      if(timer<=0) endSeek(false);
+    }
+    updateCamera();
+  } else if(state==='result' && foundAnim>0){
+    foundAnim-=dt; const a=avatars[hider]; a.position.y=hidePos.y+Math.abs(Math.sin(foundAnim*10))*0.6; updateCamera();
+  } else if(state==='menu'||state==='passHide'||state==='passSeek'){
+    menuSpin+=dt*0.08; camera.position.set(Math.sin(menuSpin)*55,30,Math.cos(menuSpin)*45); camera.lookAt(0,5,0);
+  }
+  renderer.render(scene,camera);
+}
+avatars.forEach(a=>a.visible=false);
+loop();
+</script>
+</body>
+</html>
