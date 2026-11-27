@@ -1,5 +1,14 @@
 const games = [
   {
+    "id": "overdrive",
+    "name": "Overdrive",
+    "subtitle": "3D · OPEN-WORLD DRIVING",
+    "description": "Explore a coastal city, drive and customize cars, and take on streets, highways, and racetracks.",
+    "cover": "assets/overdrive.png",
+    "macSupported": true,
+    "iPhoneSupported": false
+  },
+  {
     "id": "tiny-hide-and-seek",
     "name": "Tiny Hide & Seek",
     "subtitle": "3D · HIDE & SEEK",
