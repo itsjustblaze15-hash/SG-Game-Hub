@@ -70,8 +70,9 @@ label{font-size:16px}
 
 <div id="menu" class="overlay">
   <h1>🔍 Tiny Hide & Seek</h1>
-  <p>You're both teeny-tiny people loose in a giant living room. Hide under the couch, inside a shoe, behind the cereal box, up on the bookshelf… then pass the device and let your friend hunt you down!</p>
+  <p>You're both teeny-tiny people loose in a giant living room. Hide under the couch, inside a shoe, behind the cereal box, up on the bookshelf… play with a friend or challenge the bot!</p>
   <div class="card">
+    <label>Play mode <select id="playMode"><option value="friend">With a friend</option><option value="bot">With a bot</option></select></label><p id="modeHint" style="font-size:15px">Take turns on the same device.</p>
     <div class="row"><input id="n1" type="text" value="Player 1" maxlength="12"><input id="n2" type="text" value="Player 2" maxlength="12"></div>
     <div class="row">
       <label>Hide time <select id="hideT"><option>30</option><option selected>45</option><option>60</option><option>90</option></select>s</label>
@@ -472,6 +473,7 @@ function updateCamera(){
 
 // ---------- game state ----------
 const $=id=>document.getElementById(id);
+let botMode=false;
 let state='menu', names=['Player 1','Player 2'], scores=[0,0], round=0, totalRounds=4, hider=0, timer=0, hideTime=45, seekTime=120, hotcold=true;
 let hidePos=new THREE.Vector3(), hideCrouch=false, hideYaw=0, canTag=false, foundAnim=0;
 const SPAWN=new THREE.Vector3(4,0,-15);
@@ -481,16 +483,25 @@ function show(id){ ['menu','pass','result'].forEach(o=>$(o).classList.toggle('hi
 function setPlaying(on){ resetInput(); if(!on&&document.pointerLockElement) document.exitPointerLock(); $('hud').classList.toggle('hidden',!on); $('actions').classList.toggle('hidden',!on); $('help').classList.toggle('hidden',!on); stickEl.style.display=(on&&touchMode)?'block':'none'; if(!on)$('msg').classList.add('hidden'); }
 function flash(t,ms=2200){ const m=$('msg'); m.textContent=t; m.classList.remove('hidden'); clearTimeout(flash.t); flash.t=setTimeout(()=>m.classList.add('hidden'),ms); }
 
+$('playMode').onchange=()=>{
+ const bot=$('playMode').value==='bot'; $('n2').disabled=bot;
+ $('modeHint').textContent=bot?'You and Bot swap hiding and seeking each round. No device passing needed.':'Take turns on the same device.';
+};
 $('startBtn').onclick=()=>{
+  botMode=$('playMode').value==='bot'; canTag=false; foundAnim=0;
+
   names=[$('n1').value.trim()||'Player 1',$('n2').value.trim()||'Player 2'].map(n=>n.replace(/[<>&"']/g,''));
+  if(botMode)names[1]='Bot';
   hideTime=+$('hideT').value; seekTime=+$('seekT').value; totalRounds=+$('rounds').value; hotcold=$('hotcold').checked;
   scores=[0,0]; round=0; hider=0; preHide();
 };
 function preHide(){
+  if(botMode&&hider===1){botHide();return;}
   state='passHide'; setPlaying(false); show('pass');
   $('passTitle').textContent=`Round ${round+1} of ${totalRounds}`;
   $('passText').innerHTML=`<b>${names[hider]}</b> hides 🙈 &nbsp;·&nbsp; <b>${names[1-hider]}</b> seeks 👀<br><br>${names[1-hider]}, look away! ${names[hider]}, grab the device and tap when you're ready to hide. You've got <b>${hideTime} seconds</b>.`;
-  $('passBtn').textContent=`I'm ${names[hider]} – start hiding!`;
+  if(botMode)$('passText').textContent=`Find a hiding spot in ${hideTime} seconds, then tap Hide here. The bot will search the room while you watch from your spot.`;
+  $('passBtn').textContent=botMode?'Start hiding!':`I'm ${names[hider]} – start hiding!`;
 }
 function startHide(){
   state='hide'; show(null); setPlaying(true);
@@ -505,6 +516,7 @@ function startHide(){
 function lockHide(){
   hidePos.copy(P.pos); hideCrouch=P.crouch; hideYaw=P.yaw;
   poseAvatar(avatars[hider],hidePos,hideYaw,hideCrouch,0,false);
+  if(botMode&&hider===0){startBotSeek();return;}
   state='passSeek'; setPlaying(false); show('pass');
   $('passTitle').textContent=`${names[hider]} is hidden! 🤫`;
   $('passText').innerHTML=`Don't peek! Hand the device to <b>${names[1-hider]}</b>.<br><br>${names[1-hider]}, you have <b>${seekTime} seconds</b> to find them. Get close and tap <b>FOUND!</b> when you can see them.`;
@@ -514,7 +526,7 @@ function startSeek(){
   state='seek'; show(null); setPlaying(true);
   safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; jumpBuffer=0;coyote=0; crouchBtn.textContent='Crouch';
   avatars[1-hider].visible=true; avatars[hider].visible=true;
-  timer=seekTime; $('hcBox').style.display=hotcold?'block':'none';
+  canTag=false; timer=seekTime; $('hcBox').style.display=hotcold?'block':'none';
   $('roleTag').textContent=`👀 ${names[1-hider]} seeking`;
   mainBtn.textContent='FOUND!'; mainBtn.className='act big off';
   $('help').textContent=touchMode?'':'WASD move · drag to look · Space jump · C crouch · E tag when FOUND lights up';
@@ -523,6 +535,7 @@ function startSeek(){
 $('passBtn').onclick=()=>{ if(state==='passHide') startHide(); else if(state==='passSeek') startSeek(); };
 
 function mainAction(){
+  if(state==='botSeek')return;
   if(state==='hide') lockHide();
   else if(state==='seek'){ if(canTag) endSeek(true); else flash('Get closer – you need to actually see them!',1500); }
 }
@@ -533,7 +546,9 @@ function endSeek(found){
   else { ptsH=100; }
   scores[seeker]+=ptsS; scores[hider]+=ptsH;
   state='result'; setPlaying(false);
+  const resultRound=round;
   setTimeout(()=>{
+    if(state!=='result'||round!==resultRound)return;
     show('result');
     $('resTitle').textContent=found?`🎉 ${names[seeker]} found ${names[hider]}!`:`🏆 ${names[hider]} stayed hidden!`;
     $('resText').innerHTML=found?`Found in <b>${used.toFixed(1)}s</b>.<br>${names[seeker]} +${ptsS} · ${names[hider]} +${ptsH}`:`Time's up! The hiding spot was never discovered.<br>${names[hider]} +${ptsH}`;
@@ -565,13 +580,81 @@ function canSeeHider(){
 }
 
 document.getElementById('backMenu').onclick=()=>{if(state!=='menu'&&!confirm('Return to the menu and end this match?'))return;resetInput();state='menu';setPlaying(false);show('menu');avatars.forEach(a=>a.visible=false);};
+// Bot navigation uses connected floor cells, with crouching clearance under furniture.
+let nav=[],botPos=new THREE.Vector3(),botPath=[],botWalk=0,botThink=0,botTarget=null;
+function buildNav(){
+ nav=[];const lookup=new Map();
+ for(let x=-48;x<=48;x++)for(let z=-38;z<=38;z++){
+  const pos=new THREE.Vector3(x,0,z);
+  if(!overlaps(pos,CROUCH_H)){const n={pos,links:[]};nav.push(n);lookup.set(x+','+z,n);}
+ }
+ for(const n of nav)for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+  const m=lookup.get((n.pos.x+dx)+','+(n.pos.z+dz));
+  if(m&&!overlaps(n.pos.clone().add(m.pos).multiplyScalar(.5),CROUCH_H))n.links.push(m);
+ }
+ const start=nearestNode(SPAWN),seen=new Set([start]),queue=[start];
+ for(let i=0;i<queue.length;i++)for(const n of queue[i].links)if(!seen.has(n)){seen.add(n);queue.push(n);}
+ nav=queue;
+}
+function nearestNode(pos){return nav.reduce((a,b)=>!a||b.pos.distanceToSquared(pos)<a.pos.distanceToSquared(pos)?b:a,null);}
+function routeTo(goal){
+ const start=nearestNode(botPos),parents=new Map([[start,null]]),queue=[start];
+ for(let i=0;i<queue.length&&!parents.has(goal);i++)for(const n of queue[i].links)if(!parents.has(n)){parents.set(n,queue[i]);queue.push(n);}
+ const path=[];if(parents.has(goal))for(let n=goal;n&&n!==start;n=parents.get(n))path.unshift(n.pos);
+ return path;
+}
+function botHide(){
+ buildNav();
+ // Prefer shelter, but choose a fresh spot each round. All candidates are reachable.
+ const candidates=nav.filter(n=>n.pos.distanceTo(SPAWN)>14);
+ const sheltered=candidates.filter(n=>overlaps(n.pos,4));
+ const pool=sheltered.length?sheltered:candidates.length?candidates:nav;
+ hidePos.copy(pool[Math.floor(Math.random()*pool.length)].pos);hideCrouch=true;hideYaw=Math.random()*Math.PI*2;
+ poseAvatar(avatars[1],hidePos,hideYaw,true,0,false);avatars.forEach(a=>a.visible=false);
+ state='passSeek';setPlaying(false);show('pass');
+ $('passTitle').textContent='Bot is hidden!';
+ $('passText').textContent=`Your turn to seek. You have ${seekTime} seconds. Get close and tap FOUND when you see Bot.`;
+ $('passBtn').textContent='Find Bot!';
+}
+function startBotSeek(){
+ buildNav();botPos.copy(nearestNode(SPAWN).pos);botPath=[];botTarget=null;botThink=0;botWalk=0;
+ state='botSeek';show(null);setPlaying(true);resetInput();
+ $('actions').classList.add('hidden');stickEl.style.display='none';$('hcBox').style.display='none';
+ $('roleTag').textContent='Bot is seeking';$('help').textContent='Watch quietly from your hiding spot';
+ timer=seekTime;avatars[1].visible=true;flash('Stay hidden! Bot is searching the room.',3000);
+}
+function updateBot(dt){
+ botThink-=dt;
+ // Only pursue the player after spotting them through a clear line of sight.
+ const humanPos=P.pos.clone(),humanH=P.h;
+ P.pos.copy(botPos);P.h=CROUCH_H;
+ const visible=botPos.distanceTo(hidePos)<24&&canSeeHider();
+ P.pos.copy(humanPos);P.h=humanH;
+ if(botThink<=0||!botPath.length){
+  botThink=1.2;
+  if(visible)botTarget=nearestNode(hidePos);
+  else if(!botPath.length)botTarget=nav[Math.floor(Math.random()*nav.length)];
+  botPath=routeTo(botTarget);
+ }
+ let travel=dt*5.5,yaw=avatars[1].rotation.y-Math.PI;
+ while(travel>0&&botPath.length){const delta=botPath[0].clone().sub(botPos),d=delta.length();
+  if(d<.001){botPath.shift();continue;}yaw=Math.atan2(-delta.x,-delta.z);
+  const step=Math.min(travel,d);botPos.addScaledVector(delta,step/d);travel-=step;if(step===d)botPath.shift();
+ }
+ botWalk+=dt*10;poseAvatar(avatars[1],botPos,yaw,true,botWalk,botPath.length>0);
+ timer-=dt;$('timer').textContent=Math.max(0,Math.ceil(timer));$('timer').style.color=timer<10?'#ff7070':'#fff';
+ if(visible&&botPos.distanceTo(hidePos)<3)endSeek(true);else if(timer<=0)endSeek(false);
+ updateCamera();
+}
+
 // ---------- loop ----------
 const clock=new THREE.Clock();
 let menuSpin=0;
 function loop(){
   requestAnimationFrame(loop);
   const dt=Math.min(clock.getDelta(),0.05);
-  if((state==='hide'||state==='seek')&&!controlsOpen()){
+  if(state==='botSeek'&&!controlsOpen()){updateBot(dt);}
+  else if((state==='hide'||state==='seek')&&!controlsOpen()){
     const inp=readInput(); physics(dt,inp);
     const me=state==='hide'?avatars[hider]:avatars[1-hider];
     poseAvatar(me,P.pos,P.yaw,P.crouch,P.walk,Math.hypot(P.vel.x,P.vel.z)>0.5);
