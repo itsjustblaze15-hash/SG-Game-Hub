@@ -1,7 +1,7 @@
 'use strict';
 
 // Cache the hub shell, covers and the five installed arcade games as a single release.
-const CACHE = 'sg-mobile-arcade-2026112702';
+const CACHE = 'sg-mobile-arcade-2026112703';
 const ids = ['slice-master', 'highway-rush', 'color-switch', 'hole-city', 'burger-rush'];
 const scope = self.registration.scope;
 const paths = [
@@ -46,7 +46,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const local = () => cache.match(new URL(key,scope));
-    if (!url.search || [...url.searchParams.values()].includes('2026112702')) {
+    if (!url.search || [...url.searchParams.values()].includes('2026112703')) {
       const hit = await local();
       if (hit) return hit;
     }
