@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,viewport-fit=cover">
 <title>Tiny Hide & Seek</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -40,9 +40,33 @@ label{font-size:16px}
 #knob{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.7)}
 #help{position:fixed;left:14px;bottom:14px;z-index:10;font-size:13px;opacity:.75;pointer-events:none}
 #scores{font-size:18px}
-#stick{left:calc(24px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom))}#actions{right:calc(14px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}</style>
+#stick{left:calc(24px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom))}#actions{right:calc(14px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}
+:root{--control-scale:1;--stick-size:164px;--button-size:82px}
+.overlay{overflow-y:auto;justify-content:flex-start;padding:22px;gap:12px;overscroll-behavior:contain}.overlay::before,.overlay::after{content:'';flex:1;min-height:0}
+#stick{width:calc(var(--stick-size)*var(--control-scale));height:calc(var(--stick-size)*var(--control-scale));left:max(20px,env(safe-area-inset-left));bottom:max(20px,env(safe-area-inset-bottom));touch-action:none;user-select:none;border:3px solid #ffffff88;box-shadow:0 3px 22px #0004;background:#ffffff26}
+#knob{width:38%;height:38%;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 2px 10px #0004}
+.act{width:calc(var(--button-size)*var(--control-scale));height:calc(var(--button-size)*var(--control-scale));font-size:calc(15px*var(--control-scale));touch-action:none}
+.act.big{width:auto;min-width:calc(126px*var(--control-scale));height:calc(54px*var(--control-scale));font-size:calc(17px*var(--control-scale));padding:0 14px}
+.act[aria-pressed=true]{background:#8fe3ff;box-shadow:0 0 0 3px #fff8}
+#actions{gap:10px;right:max(16px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom))}
+#utility{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;display:flex;gap:8px}
+#utility button{font:600 14px system-ui;padding:10px 14px;border:1px solid #fff5;background:#241c3de6;color:white;border-radius:12px;min-height:44px;touch-action:manipulation}
+#controlsPanel{z-index:80;background:#211a39ed}.settings-card{width:min(440px,100%);gap:18px}.settings-card label{display:flex;flex-direction:column;gap:10px;width:100%}.settings-card input[type=range]{width:100%;min-height:44px;touch-action:pan-x}
+@media(pointer:coarse) and (min-width:900px) and (min-height:600px){:root{--stick-size:200px;--button-size:98px}}
+@media(max-height:500px){:root{--stick-size:140px;--button-size:64px}#actions{gap:8px}.act.big{height:calc(46px*var(--control-scale))}#utility button{padding:8px 12px}#hud{top:52px}.overlay{padding:16px;gap:10px}.card{padding:12px}#menu h1{font-size:34px}}
+</style>
 </head>
 <body>
+<div id="utility"><button id="backMenu">Menu</button><button id="controlSettings">Controls</button></div>
+
+<div id="controlsPanel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Control settings">
+ <div class="card settings-card"><h2>Controls</h2>
+ <label id="sizeLabel">Button & joystick size <output id="controlValue">100%</output><input id="controlSize" type="range" min="80" max="145" step="5" value="100"></label>
+ <label>Look sensitivity <output id="lookValue">100%</output><input id="lookSize" type="range" min="40" max="160" step="10" value="100"></label>
+ <p id="controlPreview" style="font-size:15px">Touch the joystick directly to move. Drag the scene to look. Tap Crouch again to stand.</p>
+ <button class="btn" id="closeControls">Done</button></div>
+</div>
+
 
 <div id="menu" class="overlay">
   <h1>🔍 Tiny Hide & Seek</h1>
@@ -312,7 +336,7 @@ function makeTiny(shirt,pants,hair,shoes){
   g.userData={legL,legR,armL,armR,headG,torso};
   scene.add(g); return g;
 }
-const STAND_H=1.7, CROUCH_H=0.95, RADIUS=0.32;
+const STAND_H=1.7, CROUCH_H=0.8, RADIUS=0.32;
 const avatars=[makeTiny(0xff5a6e,0x34448f,0x5a2d0c,0xffffff),makeTiny(0x3fc6ff,0x4a3b2f,0xf2c94b,0xff7a2f)];
 
 // ---------- player physics ----------
@@ -331,17 +355,25 @@ function moveAxis(axis,amt){
   P.pos[axis]-=amt;
   if(axis==='x') P.vel.x=0; else P.vel.z=0;
 }
-function physics(dt,input){
+let jumpBuffer=0,coyote=0;
+function physicsStep(dt,input){
   // crouch
   const want=input.crouch;
   if(want){P.crouch=true;P.h=CROUCH_H;}
   else if(P.crouch){ if(!overlaps(P.pos,STAND_H)){P.crouch=false;P.h=STAND_H;} }
-  const speed=P.crouch?3.2:7;
+  crouchBtn.textContent=P.crouch?(want?'Stand':'Low ceiling'):'Crouch';
+  crouchBtn.setAttribute('aria-pressed',String(P.crouch));
+  const speed=P.crouch?4.2:7.8;
   const fx=-Math.sin(P.yaw), fz=-Math.cos(P.yaw), rx=Math.cos(P.yaw), rz=-Math.sin(P.yaw);
   let mx=input.mx, mz=input.mz; const len=Math.hypot(mx,mz); if(len>1){mx/=len;mz/=len;}
   const tx=(fx*mz+rx*mx)*speed, tz=(fz*mz+rz*mx)*speed;
   const k=Math.min(1,dt*12); P.vel.x+=(tx-P.vel.x)*k; P.vel.z+=(tz-P.vel.z)*k;
-  if(input.jump && P.ground){ P.vel.y=8.6; P.ground=false; }
+  coyote=P.ground?.12:Math.max(0,coyote-dt);
+  jumpBuffer=Math.max(0,jumpBuffer-dt);
+  if(jumpBuffer>0&&coyote>0){
+    if(P.crouch&&!overlaps(P.pos,STAND_H)){P.crouch=false;P.h=STAND_H;tCrouch=false;}
+    if(!P.crouch){P.vel.y=15.8;P.ground=false;coyote=0;jumpBuffer=0;}
+  }
   P.vel.y-=24*dt; if(P.vel.y<-30)P.vel.y=-30;
   moveAxis('x',P.vel.x*dt); moveAxis('z',P.vel.z*dt);
   P.pos.y+=P.vel.y*dt; P.ground=false;
@@ -350,6 +382,11 @@ function physics(dt,input){
   if(P.pos.y<=0){P.pos.y=0;P.vel.y=0;P.ground=true;}
   P.pos.x=THREE.MathUtils.clamp(P.pos.x,-RW/2+1,RW/2-1); P.pos.z=THREE.MathUtils.clamp(P.pos.z,-RD/2+1,RD/2-1);
   if(len>0.1) P.walk+=dt*(P.crouch?8:12);
+}
+function physics(dt,input){
+ if(input.jump)jumpBuffer=.16;
+ const steps=Math.max(1,Math.ceil(dt/(1/120)));
+ for(let i=0;i<steps;i++)physicsStep(dt/steps,input);
 }
 function poseAvatar(a,pos,yaw,crouch,walk,moving){
   a.position.copy(pos); a.rotation.y=yaw+Math.PI;
@@ -362,42 +399,61 @@ function poseAvatar(a,pos,yaw,crouch,walk,moving){
 // ---------- input ----------
 const PLATFORM='mobile'; // 'mac' or 'mobile'
 const keys={};
+let touchMode=PLATFORM==='mobile',stick={id:null,x:0,y:0},look={id:null,x:0,y:0},tJump=false,tCrouch=false,jumpHeld=false,lookScale=1;
+const stickEl=document.getElementById('stick'),knob=document.getElementById('knob'),cv=renderer.domElement;
+const jumpBtn=document.getElementById('jumpAct'),crouchBtn=document.getElementById('crouchAct'),mainBtn=document.getElementById('mainAct');
+const controlsOpen=()=>!document.getElementById('controlsPanel').classList.contains('hidden');
+const active=()=>!controlsOpen()&&(state==='hide'||state==='seek');
+function centerStick(){stick.x=stick.y=0;knob.style.left=knob.style.top='50%';}
+function resetInput(){Object.keys(keys).forEach(k=>delete keys[k]);stick.id=look.id=null;tJump=false;jumpHeld=false;centerStick();}
+function updStick(e){
+ const r=stickEl.getBoundingClientRect(),radius=r.width*.32;
+ let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy);
+ if(d>radius){dx*=radius/d;dy*=radius/d;}
+ stick.x=Math.abs(dx/radius)<.08?0:dx/radius;stick.y=Math.abs(dy/radius)<.08?0:dy/radius;
+ knob.style.left=(r.width/2+dx)+'px';knob.style.top=(r.height/2+dy)+'px';
+}
+stickEl.addEventListener('pointerdown',e=>{if(!active()||stick.id!==null)return;e.preventDefault();e.stopPropagation();stick.id=e.pointerId;stickEl.setPointerCapture(e.pointerId);updStick(e);});
+stickEl.addEventListener('pointermove',e=>{if(e.pointerId===stick.id){e.preventDefault();updStick(e);}});
+function releaseStick(e){if(e.pointerId===stick.id){stick.id=null;centerStick();}}
+for(const type of ['pointerup','pointercancel','lostpointercapture'])stickEl.addEventListener(type,releaseStick);
+cv.addEventListener('pointerdown',e=>{if(!active()||look.id!==null||document.pointerLockElement)return;look={id:e.pointerId,x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!active()||e.pointerId!==look.id)return;const sensitivity=(e.pointerType==='touch'?.005:.004)*lookScale;P.yaw-=(e.clientX-look.x)*sensitivity;P.pitch=THREE.MathUtils.clamp(P.pitch-(e.clientY-look.y)*sensitivity,-1.2,.6);look.x=e.clientX;look.y=e.clientY;});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])cv.addEventListener(type,e=>{if(e.pointerId===look.id)look.id=null;});
 if(PLATFORM==='mac'){
-  renderer.domElement.addEventListener('click',()=>{ if((state==='hide'||state==='seek')&&!document.pointerLockElement) renderer.domElement.requestPointerLock(); });
-  addEventListener('mousemove',e=>{ if(document.pointerLockElement){ P.yaw-=e.movementX*0.0025; P.pitch-=e.movementY*0.0025; P.pitch=THREE.MathUtils.clamp(P.pitch,-1.2,0.6);} });
-  document.addEventListener('pointerlockchange',()=>{ if((state==='hide'||state==='seek')&&!document.pointerLockElement) flash('Click the game to look around with the mouse',2500); });
+ cv.addEventListener('click',()=>{if(active()&&!document.pointerLockElement)cv.requestPointerLock()?.catch(()=>flash('Drag the scene to look around.'));});
+ addEventListener('mousemove',e=>{if(active()&&document.pointerLockElement){P.yaw-=e.movementX*.0025*lookScale;P.pitch=THREE.MathUtils.clamp(P.pitch-e.movementY*.0025*lookScale,-1.2,.6);}});
 }
-addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='KeyE'||e.code==='Enter') mainAction(); if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();});
-addEventListener('keyup',e=>keys[e.code]=false);
-let touchMode=true, stick={id:null,x:0,y:0,cx:0,cy:0}, look={id:null,x:0,y:0}, tJump=false, tCrouch=false;
-const stickEl=document.getElementById('stick'), knob=document.getElementById('knob');
-const cv=renderer.domElement;
-cv.addEventListener('pointerdown',e=>{
-  if(e.pointerType==='touch'){ if(!touchMode){touchMode=true;} if(state==='hide'||state==='seek') stickEl.style.display='block'; }
-  if(e.pointerType==='touch' && e.clientX<innerWidth*0.45 && stick.id===null){
-    stick.id=e.pointerId; const r=stickEl.getBoundingClientRect(); stick.cx=r.left+r.width/2; stick.cy=r.top+r.height/2; updStick(e);
-  } else if(look.id===null){ look.id=e.pointerId; look.x=e.clientX; look.y=e.clientY; }
-  cv.setPointerCapture(e.pointerId);
+addEventListener('keydown',e=>{
+ if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||!active())return;
+ keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+ if(e.repeat)return;
+ if(e.code==='Space')tJump=true;
+ if(e.code==='KeyC')tCrouch=!tCrouch;
+ if(e.code==='KeyE'||e.code==='Enter')mainAction();
 });
-function updStick(e){ let dx=e.clientX-stick.cx, dy=e.clientY-stick.cy; const d=Math.hypot(dx,dy),m=55; if(d>m){dx*=m/d;dy*=m/d;} stick.x=dx/m; stick.y=dy/m; knob.style.left=(40+dx)+'px'; knob.style.top=(40+dy)+'px'; }
-cv.addEventListener('pointermove',e=>{
-  if(e.pointerId===stick.id) updStick(e);
-  else if(e.pointerId===look.id){ const s=e.pointerType==='touch'?0.006:0.005; P.yaw-=(e.clientX-look.x)*s; P.pitch-=(e.clientY-look.y)*s; P.pitch=THREE.MathUtils.clamp(P.pitch,-1.2,0.6); look.x=e.clientX; look.y=e.clientY; }
-});
-function endPtr(e){ if(e.pointerId===stick.id){stick.id=null;stick.x=stick.y=0;knob.style.left='40px';knob.style.top='40px';} if(e.pointerId===look.id) look.id=null; }
-cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
-const jumpBtn=document.getElementById('jumpAct'), crouchBtn=document.getElementById('crouchAct'), mainBtn=document.getElementById('mainAct');
-jumpBtn.addEventListener('pointerdown',e=>{e.stopPropagation();tJump=true;});
-crouchBtn.addEventListener('pointerdown',e=>{e.stopPropagation();tCrouch=!tCrouch;crouchBtn.textContent=tCrouch?'Stand':'Crouch';});
-mainBtn.addEventListener('click',e=>{e.stopPropagation();mainAction();});
+addEventListener('keyup',e=>{keys[e.code]=false;});
+addEventListener('blur',resetInput);addEventListener('resize',resetInput);document.addEventListener('visibilitychange',resetInput);
+jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();if(active())tJump=true;});
+crouchBtn.addEventListener('pointerdown',e=>{e.preventDefault();if(active())tCrouch=!tCrouch;});
+mainBtn.addEventListener('click',()=>{if(active())mainAction();});
 function readInput(){
-  let mx=0,mz=0;
-  if(keys.KeyW||keys.ArrowUp)mz+=1; if(keys.KeyS||keys.ArrowDown)mz-=1;
-  if(keys.KeyA||keys.ArrowLeft)mx-=1; if(keys.KeyD||keys.ArrowRight)mx+=1;
-  mx+=stick.x; mz-=stick.y;
-  const inp={mx,mz,jump:keys.Space||tJump,crouch:keys.KeyC||keys.ShiftLeft||keys.ShiftRight||tCrouch};
-  tJump=false; return inp;
+ if(!active())return {mx:0,mz:0,jump:false,crouch:P.crouch};
+ let mx=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.ArrowLeft))+stick.x;
+ let mz=Number(!!(keys.KeyW||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown))-stick.y;
+ const input={mx,mz,jump:tJump,crouch:!!(tCrouch||keys.ShiftLeft||keys.ShiftRight)};tJump=false;return input;
 }
+function applyControlSettings(){
+ const size=Number(document.getElementById('controlSize').value),look=Number(document.getElementById('lookSize').value);
+ document.documentElement.style.setProperty('--control-scale',size/100);document.getElementById('controlValue').textContent=size+'%';document.getElementById('lookValue').textContent=look+'%';lookScale=look/100;resetInput();
+ try{localStorage.setItem('sg-tiny-controls-v2',JSON.stringify({size,look}));}catch{}
+}
+try{const pref=JSON.parse(localStorage.getItem('sg-tiny-controls-v2')||'{}');if(Number.isFinite(pref.size))document.getElementById('controlSize').value=pref.size;if(Number.isFinite(pref.look))document.getElementById('lookSize').value=pref.look;}catch{}
+applyControlSettings();
+for(const id of ['controlSize','lookSize'])document.getElementById(id).addEventListener('input',applyControlSettings);
+document.getElementById('controlSettings').onclick=()=>{resetInput();if(document.pointerLockElement)document.exitPointerLock();document.getElementById('controlsPanel').classList.remove('hidden');document.getElementById('closeControls').focus();};
+document.getElementById('closeControls').onclick=()=>{document.getElementById('controlsPanel').classList.add('hidden');resetInput();};
+if(PLATFORM==='mac'){document.getElementById('sizeLabel').hidden=true;document.getElementById('controlPreview').textContent='WASD or arrows: move · Space: jump · C: toggle crouch · Shift: hold crouch · E: hide / found';}
 
 // ---------- camera ----------
 const ray=new THREE.Raycaster();
@@ -422,11 +478,11 @@ const SPAWN=new THREE.Vector3(4,0,-15);
 function safeSpawn(){ P.pos.copy(SPAWN); let n=0; while(overlaps(P.pos,STAND_H)&&n<200){ P.pos.x+=1; n++; } }
 
 function show(id){ ['menu','pass','result'].forEach(o=>$(o).classList.toggle('hidden',o!==id)); }
-function setPlaying(on){ if(!on&&document.pointerLockElement) document.exitPointerLock(); $('hud').classList.toggle('hidden',!on); $('actions').classList.toggle('hidden',!on); $('help').classList.toggle('hidden',!on); stickEl.style.display=(on&&touchMode)?'block':'none'; if(!on)$('msg').classList.add('hidden'); }
+function setPlaying(on){ resetInput(); if(!on&&document.pointerLockElement) document.exitPointerLock(); $('hud').classList.toggle('hidden',!on); $('actions').classList.toggle('hidden',!on); $('help').classList.toggle('hidden',!on); stickEl.style.display=(on&&touchMode)?'block':'none'; if(!on)$('msg').classList.add('hidden'); }
 function flash(t,ms=2200){ const m=$('msg'); m.textContent=t; m.classList.remove('hidden'); clearTimeout(flash.t); flash.t=setTimeout(()=>m.classList.add('hidden'),ms); }
 
 $('startBtn').onclick=()=>{
-  names=[$('n1').value.trim()||'Player 1',$('n2').value.trim()||'Player 2'];
+  names=[$('n1').value.trim()||'Player 1',$('n2').value.trim()||'Player 2'].map(n=>n.replace(/[<>&"']/g,''));
   hideTime=+$('hideT').value; seekTime=+$('seekT').value; totalRounds=+$('rounds').value; hotcold=$('hotcold').checked;
   scores=[0,0]; round=0; hider=0; preHide();
 };
@@ -438,7 +494,7 @@ function preHide(){
 }
 function startHide(){
   state='hide'; show(null); setPlaying(true);
-  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; crouchBtn.textContent='Crouch';
+  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; jumpBuffer=0;coyote=0; crouchBtn.textContent='Crouch';
   avatars[hider].visible=true; avatars[1-hider].visible=false;
   timer=hideTime; $('hcBox').style.display='none';
   $('roleTag').textContent=`🙈 ${names[hider]} hiding`;
@@ -456,7 +512,7 @@ function lockHide(){
 }
 function startSeek(){
   state='seek'; show(null); setPlaying(true);
-  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; crouchBtn.textContent='Crouch';
+  safeSpawn(); P.vel.set(0,0,0); P.yaw=0; P.pitch=-0.25; P.crouch=false; P.h=STAND_H; tCrouch=false; jumpBuffer=0;coyote=0; crouchBtn.textContent='Crouch';
   avatars[1-hider].visible=true; avatars[hider].visible=true;
   timer=seekTime; $('hcBox').style.display=hotcold?'block':'none';
   $('roleTag').textContent=`👀 ${names[1-hider]} seeking`;
@@ -508,13 +564,14 @@ function canSeeHider(){
   return false;
 }
 
+document.getElementById('backMenu').onclick=()=>{if(state!=='menu'&&!confirm('Return to the menu and end this match?'))return;resetInput();state='menu';setPlaying(false);show('menu');avatars.forEach(a=>a.visible=false);};
 // ---------- loop ----------
 const clock=new THREE.Clock();
 let menuSpin=0;
 function loop(){
   requestAnimationFrame(loop);
   const dt=Math.min(clock.getDelta(),0.05);
-  if(state==='hide'||state==='seek'){
+  if((state==='hide'||state==='seek')&&!controlsOpen()){
     const inp=readInput(); physics(dt,inp);
     const me=state==='hide'?avatars[hider]:avatars[1-hider];
     poseAvatar(me,P.pos,P.yaw,P.crouch,P.walk,Math.hypot(P.vel.x,P.vel.z)>0.5);

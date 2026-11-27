@@ -180,7 +180,7 @@ function syncPlayerOrientation() {
   frame.title = playingGame.name;
   const game = playingGame;
   const source = new URL(game.play, location.href);
-  if (game.arcade) source.searchParams.set('v', document.querySelector('meta[name="sg-build"]').content);
+  if (game.arcade || game.id === 'tiny-hide-and-seek') source.searchParams.set('v', document.querySelector('meta[name="sg-build"]').content);
   if (repairedGames.has(game.id)) source.searchParams.set('sg-version', phoneBuild);
   if (game.id === 'little-garden') source.searchParams.set('sg-version', document.querySelector('meta[name="sg-build"]').content);
   const refreshed = new URL(location.href).searchParams.get('sg-refresh');
